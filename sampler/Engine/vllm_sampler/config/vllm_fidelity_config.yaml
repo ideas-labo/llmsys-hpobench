@@ -1,0 +1,28 @@
+# vllm_fidelity_config.yaml
+
+workload:
+  name: ShareGPT
+  source: https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered
+  # prompt_length_distribution: "long-tail"  # 长尾分布
+  # response_length_distribution: "long-tail"  # 长尾分布
+  
+
+## Fidelity factors:
+subset_size_or_ratio:[0.2, 0.4, 0.6, 0.8, 1.0]  # 子集比例
+# subset_size_or_ratio: [100, 300, 600]  # 子集大小
+
+
+shared_prefix_ratio: [0.1, 0.3, 0.6]  # 前缀共享比例
+
+concurrency_levels: [1, 4, 8, 12]  # 并发连接数
+
+request_pattern:
+  arrival_mode: poisson  # 请求到达模式：泊松过程
+  arrival_rate: [10, 20, 30]  # 平均每秒请求数
+  arrival_rate_distribution: normal  # 到达率分布
+  batch_size_distribution: normal  # 批处理大小分布
+
+# prompt_complexity:
+#   include_code: false
+#   include_tables: false
+#   include_emojis: false

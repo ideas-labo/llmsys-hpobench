@@ -1,0 +1,32 @@
+{
+  "time": {
+    "default": 600,
+    "type": "enum",
+    "cost_related": "Yes",
+    "enum_values": [ 30, 50, 100, 150, 300, 600]
+    },
+  "tables": {
+    "default": 150,
+    "cost_related": "Yes",
+    "type": "enum",
+    "enum_values": [15, 30, 50, 75, 150]
+  },
+  "table-size":{
+    "default": 800000,
+    "cost_related": "Yes",
+    "type": "enum",
+    "enum_values": [100000, 200000, 400000, 800000]
+  },
+  "threads": {
+    "default": 64,
+    "cost_related": "Yes",
+    "type": "enum",
+    "enum_values": [16, 32, 64]
+  },
+  "r_ratio": {
+    "default": 0.5,
+    "cost_related": "Uncertain",
+    "type": "enum",
+    "enum_values": [0.5, 0.6, 0.7, 0.8, 0.9]
+  }
+}
