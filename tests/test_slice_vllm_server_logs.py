@@ -181,6 +181,49 @@ ID,log-client-file,log-server-file
             self.assertNotIn("far after window", sliced)
             self.assertEqual(summary["empty_slices"], 1)
 
+    def test_slices_server_section_inside_combined_log_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "vLLM"
+            fidelity = root / "5.0-0.5-4-50-r1"
+            write_csv(
+                fidelity / "5.0-0.5-4-50-r1.csv",
+                """
+ID,log-file
+1,log_file/id1.log
+""",
+            )
+            write_text(
+                fidelity / "log_file" / "id1.log",
+                """
+===== CLIENT LOG =====
+source: id1-client.log
+
+[13:06:58] [Client-1-1] Starting vLLM Sampler Benchmark...
+[13:08:07] [Client-1-1] === Client finished with exit code: 0 ===
+
+===== SERVER LOG =====
+source: id1-server.log
+
+[13:06:40] [vLLM-1] init before window
+[13:06:58] [vLLM-1] first benchmark line
+[13:08:07] [vLLM-1] final benchmark line
+[13:08:11] [vLLM-1] after window
+""",
+            )
+
+            summary = slice_vllm_server_logs(root, padding_seconds=0)
+
+            sliced = (fidelity / "log_file" / "id1.log").read_text(encoding="utf-8")
+            self.assertIn("===== CLIENT LOG =====", sliced)
+            self.assertIn("Starting vLLM Sampler Benchmark", sliced)
+            self.assertIn("===== SERVER LOG =====", sliced)
+            self.assertIn("# Sliced vLLM server log", sliced)
+            self.assertIn("first benchmark line", sliced)
+            self.assertIn("final benchmark line", sliced)
+            self.assertNotIn("init before window", sliced)
+            self.assertNotIn("after window", sliced)
+            self.assertEqual(summary["combined_logs_sliced"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

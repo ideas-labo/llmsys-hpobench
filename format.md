@@ -22,8 +22,7 @@ Columns should be organized in this order when possible: `ID`, hyperparameters, 
 | Objective Metrics | `obj-{metric_name}{+/-}` | Optimization target metrics. Use `+` for metrics to maximize and `-` for metrics to minimize. | `obj-throughput+`, `obj-TTFT-` |
 | Cost Metrics | `cost-{metric_name}` | Cost or resource consumption metrics. | `cost-gpu_cache_usage`, `cost-duration` |
 | Hardware File Reference | `hw-file` | File name or file ID for a hardware monitoring artifact associated with the row. Leave blank if no separate hardware artifact exists. | `id1-hw` |
-| Client Log Reference | `log-client-file` | File name or file ID for the client-side log artifact associated with the row. | `id1-client.log` |
-| Server Log Reference | `log-server-file` | File name or file ID for the server-side log artifact associated with the row. | `id1-server.log` |
+| Log File Reference | `log-file` | File name or file ID for the combined log artifact associated with the row. Use titled sections inside the file to distinguish client and server logs. | `id1.log` |
 
 ### AI vs. Non-AI Hyperparameters
 
@@ -51,16 +50,16 @@ If a parameter is ambiguous, classify it by whether it directly changes model, r
 ## CSV Example
 
 ```csv
-ID,cfg-max_num_seqs,cfg-ai-enable_prefix_caching,obj-throughput+,obj-TTFT-,cost-gpu_cache_usage,cost-duration,hw-file,log-client-file,log-server-file
-1,1024,True,145.2,0.62,84.7%,287.4,id1-hw,id1-client.log,id1-server.log
-2,1024,False,151.6,0.58,81.3%,273.1,id2-hw,id2-client.log,id2-server.log
+ID,cfg-max_num_seqs,cfg-ai-enable_prefix_caching,obj-throughput+,obj-TTFT-,cost-gpu_cache_usage,cost-duration,hw-file,log-file
+1,1024,True,145.2,0.62,84.7%,287.4,id1-hw,id1.log
+2,1024,False,151.6,0.58,81.3%,273.1,id2-hw,id2.log
 ```
 
 Notes:
 
 - `obj-throughput+` means throughput is a maximization objective.
 - `obj-TTFT-` means TTFT is a minimization objective.
-- `hw-file`, `log-client-file`, and `log-server-file` store artifact references. The actual files should be placed under `hw_file/` and `log_file/` in the current fidelity directory.
+- `hw-file` and `log-file` store artifact references. The actual files should be placed under `hw_file/` and `log_file/` in the current fidelity directory.
 - If hardware monitoring metrics need to be expanded into the CSV later, expanded hardware metric columns should use the `hw-{metric_name}` prefix. The original hardware artifact reference should still remain in `hw-file`.
 
 ## CSV File Naming Rules
@@ -85,6 +84,8 @@ This example means:
 
 The file name should contain only fidelity values, not field names such as `factor1` or `factor2`. The meaning and order of the factors must be documented in the corresponding system-level or dataset-level notes.
 
+Do not duplicate these values as `FIDELITY_*` columns in the main CSV. The fidelity directory and CSV file name are the source of truth for fidelity values.
+
 ## Directory Layout
 
 Each system should use the following layout:
@@ -94,12 +95,9 @@ Each system should use the following layout:
 `-- {fidelity_name}/
     |-- {fidelity_name}.csv
     |-- log_file/
-    |   |-- id1-client.log
-    |   |-- id1-server.log
-    |   |-- id2-client.log
-    |   |-- id2-server.log
-    |   |-- id3-client.log
-    |   `-- id3-server.log
+    |   |-- id1.log
+    |   |-- id2.log
+    |   `-- id3.log
     `-- hw_file/
         |-- id1-hw
         |-- id2-hw
@@ -108,9 +106,9 @@ Each system should use the following layout:
 
 Rules:
 
-- `{system_name}` is the system or benchmark name, for example `vLLM`, `LightRAG`, or `openhands`.
+- `{system_name}` is the system or benchmark name, for example `vLLM`, `SGLang`, `LightRAG`, or `openhands`.
 - `{fidelity_name}` must match the CSV file stem, for example `moderate-r1-memory_retrieval`.
-- `log_file/` stores client and server log files for records under the current fidelity.
+- `log_file/` stores combined per-record log files for records under the current fidelity.
 - `hw_file/` stores hardware monitoring files for records under the current fidelity.
 - The log and hardware references in the CSV must uniquely resolve to files in the corresponding local directories.
 
@@ -120,25 +118,36 @@ Hardware and log artifacts only need to be stored as unique file names or file I
 
 ```text
 id{ID}-hw
-id{ID}-client.log
-id{ID}-server.log
+id{ID}.log
 ```
 
 Examples:
 
 - For `ID=1`, the hardware file is `hw_file/id1-hw`.
-- For `ID=1`, the client log file is `log_file/id1-client.log`.
-- For `ID=1`, the server log file is `log_file/id1-server.log`.
+- For `ID=1`, the combined log file is `log_file/id1.log`.
 
 If original extensions should be preserved, the following form is also acceptable:
 
 ```text
 id1-hw.csv
-id1-client.log
-id1-server.log
+id1.log
 ```
 
 However, the value stored in the CSV cell must exactly match the actual file name.
+
+Combined log files should use titled sections:
+
+```text
+===== CLIENT LOG =====
+source: original-client.log
+
+...
+
+===== SERVER LOG =====
+source: original-server.log
+
+...
+```
 
 ## Cleaning Checklist
 
@@ -160,7 +169,7 @@ Before submitting organized data, verify that:
 Raw vLLM sampling data can be normalized with:
 
 ```bash
-uv run python scripts/normalize_vllm.py --source vLLM --output normalized/vLLM --artifact-mode hardlink
+uv run python scripts/normalize_vllm.py --source vLLM --output normalized/vLLM
 ```
 
 The workflow:
@@ -170,17 +179,13 @@ The workflow:
 - Splits each raw vLLM CSV by `repeat`, so each output CSV corresponds to one fidelity/run combination.
 - Renames fidelity directories and CSVs as `{rate}-{burstiness}-{max_concurrency}-{num_prompts}-r{repeat}`.
 - Converts raw vLLM columns to the required prefixes: `cfg-ai-`, `cfg-`, `obj-`, and `cost-`.
-- Adds `log-client-file`, `log-server-file`, and `hw-file` columns for each sampled row.
-- Links `log-client-file` to the matching `client_config_{config_id}_fidelity_{fidelity_id}_*.log`.
-- Links `log-server-file` to the matching `server_config_{config_id}_*.log`; after linking, slice each server log to the client run window so each row references only the server-side log segment for that sample.
+- Adds `log-file` and `hw-file` columns for each sampled row.
+- Writes `log-file` as one combined file containing the matching `client_config_{config_id}_fidelity_{fidelity_id}_*.log` and `server_config_{config_id}_*.log` sections.
+- After linking, slice the server section to the client run window so each row references only the server-side log segment for that sample.
 - Leaves `hw-file` empty for raw vLLM data because the available server-side artifacts are logs, not separate hardware metric files.
 - Leaves any artifact reference empty when the corresponding artifact is missing.
 
-Artifact modes:
-
-- `reference`: only writes relative paths to the original raw artifacts.
-- `copy`: copies artifacts into each normalized fidelity directory.
-- `hardlink`: creates local hard links under `log_file/` and `hw_file/` without duplicating file contents on disk. This is the recommended mode when the output is on the same filesystem as the raw data.
+The vLLM normalizer materializes combined `log-file` artifacts under each fidelity directory because each output log may contain content from both a client log and a server log. The legacy `--artifact-mode` option is still accepted for compatibility, but combined logs are always written as new files.
 
 After normalization, slice vLLM server logs precisely:
 
@@ -188,7 +193,29 @@ After normalization, slice vLLM server logs precisely:
 uv run python scripts/slice_vllm_server_logs.py --root experiment-data/Engine/vLLM --padding-seconds 3
 ```
 
-The slicer reads each `log-client-file`, extracts the sampling window from the client start/end markers, aligns that window to the server log timestamp timeline, and rewrites the row's `log-server-file` to contain only matching server lines plus metadata. It handles server logs that cross midnight and safely replaces hard-linked files without mutating other links. If the server produced no lines inside the client window, the output file is still rewritten as a small metadata-only slice with `selected_lines=0`.
+The slicer reads each `log-file`, extracts the sampling window from the client section, aligns that window to the server log timestamp timeline, and rewrites the server section to contain only matching server lines plus metadata. It handles server logs that cross midnight and safely replaces hard-linked files without mutating other links. If the server produced no lines inside the client window, the output file is still rewritten with a metadata-only server section using `selected_lines=0`.
+
+## SGLang Normalization Workflow
+
+Raw SGLang sampling data can be normalized in place with:
+
+```bash
+uv run python scripts/normalize_sglang.py --root experiment-data/Engine/SGLang --remove-raw
+```
+
+The workflow:
+
+- Reads raw JSON sample outputs from directories named like `rate5.0_burst2.0_conc16_groups16_ppg8_syslen1024_qlen128_olen256`.
+- Treats a missing raw `burst...` token as `burstiness=1.0`.
+- Renames fidelity directories and CSVs as `{request_rate}-{burstiness}-{max_concurrency}-{gsp_num_groups}-{gsp_system_prompt_len}`, matching the SGLang factor order in `experiment-data/tab-format.tex`.
+- Converts SGLang serving/runtime parameters to `cfg-*` columns.
+- Converts sampling parameters such as `temperature`, `top_k`, and `top_p` to `cfg-ai-*` columns.
+- Converts throughput metrics to `obj-*+` columns and latency metrics to `obj-*-` columns.
+- Converts duration, token counts, and observed concurrency to `cost-*` columns.
+- Adds `log-file` and `hw-file` columns for each sampled row.
+- Writes `log-file` as one combined file with titled `CLIENT LOG` and `SERVER LOG` sections.
+- Slices the server section to the client `Started at` / `Completed at` window with a small configurable padding. If the server log has no lines in that window, the server section remains metadata-only with `selected_lines: 0`.
+- Leaves `hw-file` empty because the current raw SGLang data has no separate hardware metric artifacts.
 
 ## Benchmark Data Root
 
@@ -199,6 +226,7 @@ experiment-data/
 |-- Agent/
 |   `-- openhands/
 |-- Engine/
+|   |-- SGLang/
 |   `-- vLLM/
 `-- RAG/
     |-- html_rag/
@@ -211,6 +239,7 @@ Built-in system registrations map system names to these paths:
 | System | Registered Path |
 |---|---|
 | `vLLM` | `Engine/vLLM` |
+| `SGLang` | `Engine/SGLang` |
 | `openhands` | `Agent/openhands` |
 | `html_rag` | `RAG/html_rag` |
 | `LightRAG` | `RAG/LightRAG` |
@@ -246,7 +275,7 @@ uv run python scripts/normalize_experiment_data.py --root experiment-data
 This workflow normalizes all benchmark CSVs in place:
 
 - Ensures the first column is `ID`.
-- Adds blank `hw-file`, `log-client-file`, and `log-server-file` columns when a system has no artifact files.
+- Adds blank `hw-file` and `log-file` columns when a system has no artifact files.
 - Adds `+` or `-` direction suffixes to `obj-*` metrics.
 - Removes empty CSV header columns.
 - Ignores files inside `log_file/` and `hw_file/` artifact directories.

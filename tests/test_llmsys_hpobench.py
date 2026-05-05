@@ -20,9 +20,9 @@ class BenchmarkTests(unittest.TestCase):
                 / "moderate-r1-memory_retrieval"
                 / "moderate-r1-memory_retrieval.csv",
                 """
-ID,cfg-max_num_seqs,cfg-enable_prefix_caching,cfg-ai-temperature,FIDELITY_factor,FIDELITY_repeat,obj-throughput+,obj-TTFT-,cost-gpu_cache_usage,hw-file,log-client-file,log-server-file
-1,1024,True,0.2,moderate,1,145.2,0.62,84.7,hw_file/id1-hw.csv,log_file/id1-client.log,log_file/id1-server.log
-2,2048,False,0.7,moderate,1,167.9,0.71,90.8,hw_file/id2-hw.csv,log_file/id2-client.log,log_file/id2-server.log
+ID,cfg-max_num_seqs,cfg-enable_prefix_caching,cfg-ai-temperature,obj-throughput+,obj-TTFT-,cost-gpu_cache_usage,hw-file,log-file
+1,1024,True,0.2,145.2,0.62,84.7,hw_file/id1-hw.csv,log_file/id1.log
+2,2048,False,0.7,167.9,0.71,90.8,hw_file/id2-hw.csv,log_file/id2.log
 """,
             )
             write_csv(
@@ -62,14 +62,13 @@ timestamp,gpu_util
             self.assertEqual(measurement["perf"]["TTFT-"], 0.71)
             self.assertEqual(measurement["cost"]["gpu_cache_usage"], 90.8)
             self.assertEqual(measurement["hardware"]["file"], "hw_file/id2-hw.csv")
-            self.assertEqual(measurement["log"]["client-file"], "log_file/id2-client.log")
-            self.assertEqual(measurement["log"]["server-file"], "log_file/id2-server.log")
+            self.assertEqual(measurement["log"]["file"], "log_file/id2.log")
             self.assertEqual(
-                measurement.select(perf=["TTFT-"], cost=["gpu_cache_usage"], log=["client-file"]),
+                measurement.select(perf=["TTFT-"], cost=["gpu_cache_usage"], log=["file"]),
                 {
                     "perf": {"TTFT-": 0.71},
                     "cost": {"gpu_cache_usage": 90.8},
-                    "log": {"client-file": "log_file/id2-client.log"},
+                    "log": {"file": "log_file/id2.log"},
                 },
             )
             self.assertEqual(Z.names, ["moderate-r1-memory_retrieval"])
@@ -105,14 +104,32 @@ ID,cfg-a,obj-score+
             with self.assertRaises(KeyError):
                 benchmark.evaluate({"a": 2}, "f1")
 
+    def test_missing_config_uses_raw_manhattan_nearest_neighbor_by_default(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            write_csv(
+                tmp_path / "target_system" / "f1" / "f1.csv",
+                """
+ID,cfg-wide,cfg-narrow,obj-score+
+1,100,0,1.0
+2,0,9,2.0
+""",
+            )
+
+            benchmark = Benchmark(system="target_system", root=tmp_path)
+            measurement = benchmark.evaluate({"wide": 90, "narrow": 9}, "f1")
+
+            self.assertEqual(measurement["config"], {"wide": 100, "narrow": 0})
+            self.assertEqual(measurement["perf"]["score+"], 1.0)
+
     def test_registered_system_resolves_experiment_data_layout(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             tmp_path = Path(temp_dir)
             write_csv(
                 tmp_path / "experiment-data" / "Engine" / "vLLM" / "f1" / "f1.csv",
                 """
-ID,cfg-a,obj-score+,log-client-file,hw-file
-1,1,0.5,log_file/id1-client.log,
+ID,cfg-a,obj-score+,log-file,hw-file
+1,1,0.5,log_file/id1.log,
 """,
             )
 
@@ -121,8 +138,34 @@ ID,cfg-a,obj-score+,log-client-file,hw-file
             self.assertEqual(benchmark.system_dir, (tmp_path / "experiment-data" / "Engine" / "vLLM").resolve())
             measurement = benchmark.evaluate({"a": 1}, "f1")
             self.assertEqual(measurement["perf"]["score+"], 0.5)
-            self.assertEqual(measurement["log"]["client-file"], "log_file/id1-client.log")
+            self.assertEqual(measurement["log"]["file"], "log_file/id1.log")
             self.assertEqual(measurement["hardware"]["file"], None)
+
+    def test_sglang_raw_multi_fidelity_log_csv_is_not_loaded_as_benchmark_records(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            write_csv(
+                tmp_path / "experiment-data" / "Engine" / "SGLang" / "f1" / "f1.csv",
+                """
+ID,cfg-a,obj-score+
+1,1,0.5
+""",
+            )
+            write_csv(
+                tmp_path / "experiment-data" / "Engine" / "SGLang" / "sglang_multi_fidelity_benchmark_log.csv",
+                """
+tp_size,exit_code
+1,-3
+""",
+            )
+
+            benchmark = Benchmark(system="SGLang", root=tmp_path / "experiment-data")
+
+            self.assertEqual(len(benchmark.records), 1)
+            self.assertEqual(benchmark.get_fidelity_space().names, ["f1"])
+
+    def test_sglang_is_registered_under_engine(self):
+        self.assertEqual(registered_systems()["SGLang"], "Engine/SGLang")
 
     def test_custom_system_registration_extends_resolution(self):
         with tempfile.TemporaryDirectory() as temp_dir:

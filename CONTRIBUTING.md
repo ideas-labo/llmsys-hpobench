@@ -13,7 +13,7 @@ Before starting, read:
 Use these names consistently in your contribution:
 
 - `<category>`: top-level benchmark family, for example `Engine`, `RAG`, or `Agent`.
-- `<system>`: unique system name used in code, for example `vLLM`, `LightRAG`, or `openhands`.
+- `<system>`: unique system name used in code, for example `vLLM`, `SGLang`, `LightRAG`, or `openhands`.
 - `<fidelity_name>`: one workload/fidelity combination, for example `5.0-0.5-4-50-r1`.
 - `<system_manual>`: documentation file under `manuals/<category>/<system>.md`.
 
@@ -42,8 +42,7 @@ experiment-data/
         `-- <fidelity_name>/
             |-- <fidelity_name>.csv
             |-- log_file/
-            |   |-- id1-client.log
-            |   `-- id1-server.log
+            |   `-- id1.log
             `-- hw_file/
                 `-- id1-hw.csv
 ```
@@ -52,7 +51,7 @@ Rules:
 
 - Each fidelity directory must contain exactly one main CSV.
 - The main CSV file stem must match the fidelity directory name.
-- `log_file/` and `hw_file/` are optional, but the CSV must still contain `log-client-file`, `log-server-file`, and `hw-file` columns.
+- `log_file/` and `hw_file/` are optional, but the CSV must still contain `log-file` and `hw-file` columns.
 - If an artifact is not available, leave the corresponding CSV cell blank.
 - Do not place benchmark CSVs inside `log_file/` or `hw_file/`; those directories are ignored by the loader.
 
@@ -61,8 +60,8 @@ Rules:
 Every main CSV must follow [`format.md`](format.md):
 
 ```csv
-ID,cfg-...,cfg-ai-...,obj-score+,obj-latency-,cost-...,hw-file,log-client-file,log-server-file
-1,...,...,...,...,...,,log_file/id1-client.log,log_file/id1-server.log
+ID,cfg-...,cfg-ai-...,obj-score+,obj-latency-,cost-...,hw-file,log-file
+1,...,...,...,...,...,,log_file/id1.log
 ```
 
 Column rules:
@@ -74,9 +73,9 @@ Column rules:
 - `obj-{name}-`: objective metric to minimize.
 - `cost-{name}`: resource or cost metric.
 - `hw-file`: hardware artifact path relative to the fidelity directory, or blank.
-- `log-client-file`: client log path relative to the fidelity directory, or blank.
-- `log-server-file`: server log path relative to the fidelity directory, or blank.
-- `FIDELITY_{name}`: optional fidelity values embedded in the CSV.
+- `log-file`: combined log path relative to the fidelity directory, or blank. Use titled sections such as `===== CLIENT LOG =====` and `===== SERVER LOG =====` inside the file.
+
+Do not add `FIDELITY_*` columns to the main CSV. Fidelity values should be encoded by the fidelity directory and CSV file name, with their meaning documented in the system manual.
 
 If you are converting raw CSVs, run the all-system normalizer:
 
@@ -84,7 +83,7 @@ If you are converting raw CSVs, run the all-system normalizer:
 uv run python scripts/normalize_experiment_data.py --root experiment-data
 ```
 
-If your raw data needs special handling, add a focused normalizer under `scripts/`. See [`scripts/normalize_vllm.py`](scripts/normalize_vllm.py) for an example that maps raw vLLM CSVs and log files into the common format. For systems with shared lifecycle logs, also add a slicer when a row should reference only the log segment for that sampled run; [`scripts/slice_vllm_server_logs.py`](scripts/slice_vllm_server_logs.py) shows how to align client and server timestamps, including server logs that cross midnight.
+If your raw data needs special handling, add a focused normalizer under `scripts/`. See [`scripts/normalize_vllm.py`](scripts/normalize_vllm.py) for raw vLLM CSVs and [`scripts/normalize_sglang.py`](scripts/normalize_sglang.py) for raw SGLang JSON samples. For systems with shared lifecycle logs, also add timestamp slicing when a row should reference only the log segment for that sampled run; [`scripts/slice_vllm_server_logs.py`](scripts/slice_vllm_server_logs.py) shows how to align client and server timestamps, including server logs that cross midnight.
 
 ## Step 4: Register the System
 
@@ -93,6 +92,7 @@ Open [`llmsys_hpobench.py`](llmsys_hpobench.py) and add your system to `SYSTEM_R
 ```python
 SYSTEM_REGISTRY: dict[str, str] = {
     "vLLM": "Engine/vLLM",
+    "SGLang": "Engine/SGLang",
     "openhands": "Agent/openhands",
     "html_rag": "RAG/html_rag",
     "LightRAG": "RAG/LightRAG",
@@ -134,6 +134,7 @@ Include:
 Existing examples:
 
 - [`manuals/Engine/vLLM.md`](manuals/Engine/vLLM.md)
+- [`manuals/Engine/SGLang.md`](manuals/Engine/SGLang.md)
 - [`manuals/RAG/LightRAG.md`](manuals/RAG/LightRAG.md)
 - [`manuals/Agent/Openhands.md`](manuals/Agent/Openhands.md)
 
@@ -146,6 +147,7 @@ Relevant existing tests:
 - [`tests/test_llmsys_hpobench.py`](tests/test_llmsys_hpobench.py): benchmark loading, registration, fidelity discovery, and evaluation behavior.
 - [`tests/test_normalize_experiment_data.py`](tests/test_normalize_experiment_data.py): common data-format normalization.
 - [`tests/test_normalize_vllm.py`](tests/test_normalize_vllm.py): vLLM-specific cleaning workflow.
+- [`tests/test_normalize_sglang.py`](tests/test_normalize_sglang.py): SGLang-specific JSON cleaning workflow.
 - [`tests/test_slice_vllm_server_logs.py`](tests/test_slice_vllm_server_logs.py): vLLM server-log slicing and timestamp alignment.
 
 For a new built-in system, add a small synthetic fixture test that proves:
@@ -165,7 +167,7 @@ uv run python scripts/normalize_experiment_data.py --root experiment-data
 Then run the test suite:
 
 ```bash
-uv run python -m unittest tests.test_llmsys_hpobench tests.test_normalize_experiment_data tests.test_normalize_vllm tests.test_slice_vllm_server_logs -v
+uv run python -m unittest tests.test_llmsys_hpobench tests.test_normalize_experiment_data tests.test_normalize_vllm tests.test_normalize_sglang tests.test_slice_vllm_server_logs -v
 ```
 
 Smoke-test your system:
@@ -211,7 +213,7 @@ Before opening a PR, verify:
 - Non-AI parameters use `cfg-`.
 - Objective metrics use `obj-` and end with `+` or `-`.
 - Cost metrics use `cost-`.
-- `hw-file`, `log-client-file`, and `log-server-file` are present in every main CSV.
+- `hw-file` and `log-file` are present in every main CSV.
 - Nonblank artifact references resolve under the fidelity directory.
 - `SYSTEM_REGISTRY` includes the system.
 - `manuals/<category>/<system>.md` describes the benchmark.

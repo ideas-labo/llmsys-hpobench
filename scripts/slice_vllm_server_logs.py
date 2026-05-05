@@ -9,6 +9,7 @@ import re
 import shutil
 from pathlib import Path
 from dataclasses import dataclass
+from typing import Iterable
 
 
 TIME_RE = re.compile(r"^\[(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\]")
@@ -77,6 +78,8 @@ def slice_vllm_server_logs(
         "window_parse_failures": 0,
         "empty_slices": 0,
         "already_sliced": 0,
+        "combined_logs_sliced": 0,
+        "missing_log_files": 0,
     }
 
     tasks_by_server: dict[tuple[int, int], list[_SliceTask]] = {}
@@ -89,6 +92,33 @@ def slice_vllm_server_logs(
             reader = csv.DictReader(handle)
             for row in reader:
                 summary["rows_scanned"] += 1
+                combined_ref = (row.get("log-file") or "").strip()
+                if combined_ref:
+                    combined_path = fidelity_dir / combined_ref
+                    if not combined_path.is_file():
+                        summary["missing_log_files"] += 1
+                        continue
+                    if _looks_combined_already_sliced(combined_path):
+                        summary["already_sliced"] += 1
+                        continue
+                    result = _slice_combined_log_file(
+                        combined_path,
+                        padding_seconds=padding_seconds,
+                        backup=backup,
+                    )
+                    if result == "sliced":
+                        summary["server_logs_sliced"] += 1
+                        summary["combined_logs_sliced"] += 1
+                    elif result == "empty":
+                        summary["server_logs_sliced"] += 1
+                        summary["combined_logs_sliced"] += 1
+                        summary["empty_slices"] += 1
+                    elif result == "window_parse_failed":
+                        summary["window_parse_failures"] += 1
+                    elif result == "missing_server":
+                        summary["missing_server_references"] += 1
+                    continue
+
                 client_ref = (row.get("log-client-file") or "").strip()
                 server_ref = (row.get("log-server-file") or "").strip()
                 if not server_ref:
@@ -185,22 +215,26 @@ def _timestamp_seconds(line: str) -> int | None:
 
 
 def _parse_timed_lines(server_path: Path) -> list[tuple[int, str]]:
+    with server_path.open("r", encoding="utf-8", errors="replace") as handle:
+        return _parse_timed_lines_from_lines(handle)
+
+
+def _parse_timed_lines_from_lines(lines: Iterable[str]) -> list[tuple[int, str]]:
     timed_lines: list[tuple[int, str]] = []
     current_timestamp: int | None = None
     rollover_offset = 0
     previous_raw_timestamp: int | None = None
 
-    with server_path.open("r", encoding="utf-8", errors="replace") as handle:
-        for line in handle:
-            raw_timestamp = _timestamp_seconds(line)
-            if raw_timestamp is not None:
-                if previous_raw_timestamp is not None and raw_timestamp + rollover_offset < previous_raw_timestamp:
-                    rollover_offset += 24 * 3600
-                current_timestamp = raw_timestamp + rollover_offset
-                previous_raw_timestamp = current_timestamp
-            if current_timestamp is None:
-                continue
-            timed_lines.append((current_timestamp, line))
+    for line in lines:
+        raw_timestamp = _timestamp_seconds(line)
+        if raw_timestamp is not None:
+            if previous_raw_timestamp is not None and raw_timestamp + rollover_offset < previous_raw_timestamp:
+                rollover_offset += 24 * 3600
+            current_timestamp = raw_timestamp + rollover_offset
+            previous_raw_timestamp = current_timestamp
+        if current_timestamp is None:
+            continue
+        timed_lines.append((current_timestamp, line))
     return timed_lines
 
 
@@ -260,6 +294,111 @@ def _looks_already_sliced(server_path: Path) -> bool:
     return first_line.startswith("# Sliced vLLM server log")
 
 
+def _looks_combined_already_sliced(log_path: Path) -> bool:
+    try:
+        with log_path.open("r", encoding="utf-8", errors="replace") as handle:
+            return any(line.startswith("# Sliced vLLM server log") for line in handle)
+    except OSError:
+        return False
+
+
+def _slice_combined_log_file(
+    log_path: Path,
+    *,
+    padding_seconds: int,
+    backup: bool,
+) -> str:
+    lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+    client_section = _section_lines(lines, "CLIENT LOG")
+    server_section = _section_lines(lines, "SERVER LOG")
+    if not server_section:
+        return "missing_server"
+
+    try:
+        start, end = _extract_client_window_from_lines(client_section or lines, log_path)
+    except ValueError:
+        return "window_parse_failed"
+
+    server_body = _section_body_lines(server_section)
+    timed_lines = _parse_timed_lines_from_lines(server_body)
+    timestamps = [timestamp for timestamp, _line in timed_lines]
+    aligned_start, aligned_end = _align_window_to_timeline(start, end, timestamps)
+    sliced_lines = _select_lines(
+        timed_lines,
+        timestamps,
+        aligned_start - padding_seconds,
+        aligned_end + padding_seconds,
+    )
+
+    if backup:
+        backup_path = log_path.with_suffix(log_path.suffix + ".bak")
+        if not backup_path.exists():
+            shutil.copy2(log_path, backup_path)
+
+    _write_combined_sliced_log(
+        log_path,
+        client_section or lines[: _section_start(lines, "SERVER LOG")],
+        start,
+        end,
+        padding_seconds,
+        sliced_lines,
+    )
+    return "sliced" if sliced_lines else "empty"
+
+
+def _extract_client_window_from_lines(lines: Iterable[str], path: Path) -> tuple[int, int]:
+    start: int | None = None
+    end: int | None = None
+    last_timestamp: int | None = None
+
+    for line in lines:
+        timestamp = _timestamp_seconds(line)
+        if timestamp is not None:
+            last_timestamp = timestamp
+        if CLIENT_START_MARKER in line and timestamp is not None and start is None:
+            start = timestamp
+        if any(marker in line for marker in CLIENT_END_MARKERS) and timestamp is not None:
+            end = timestamp
+
+    if start is None:
+        raise ValueError(f"Could not find client start marker in {path}")
+    if end is None:
+        end = last_timestamp
+    if end is None:
+        raise ValueError(f"Could not find client end timestamp in {path}")
+    return start, end
+
+
+def _section_start(lines: list[str], title: str) -> int:
+    marker = f"===== {title} ====="
+    for index, line in enumerate(lines):
+        if line.strip() == marker:
+            return index
+    return len(lines)
+
+
+def _section_lines(lines: list[str], title: str) -> list[str]:
+    start = _section_start(lines, title)
+    if start == len(lines):
+        return []
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        stripped = lines[index].strip()
+        if stripped.startswith("=====") and stripped.endswith("====="):
+            end = index
+            break
+    return lines[start:end]
+
+
+def _section_body_lines(section: list[str]) -> list[str]:
+    for index, line in enumerate(section):
+        if index == 0:
+            continue
+        if line.strip() == "":
+            return section[index + 1 :]
+    return section[1:]
+
+
 def _write_sliced_log(
     server_path: Path,
     client_path: Path,
@@ -284,6 +423,37 @@ def _write_sliced_log(
         handle.writelines(header)
         handle.writelines(sliced_lines)
     tmp_path.replace(server_path)
+
+
+def _write_combined_sliced_log(
+    log_path: Path,
+    client_section: list[str],
+    start: int,
+    end: int,
+    padding_seconds: int,
+    sliced_lines: list[str],
+) -> None:
+    server_header = [
+        "===== SERVER LOG =====\n",
+        "# Sliced vLLM server log\n",
+        f"# client_window={_format_seconds(start)}-{_format_seconds(end)}\n",
+        f"# padding_seconds={padding_seconds}\n",
+        f"# selected_lines={len(sliced_lines)}\n",
+    ]
+    if not sliced_lines:
+        server_header.append("# no_server_lines_in_window=true\n")
+
+    tmp_path = log_path.with_name(log_path.name + ".tmp")
+    if tmp_path.exists():
+        tmp_path.unlink()
+    with tmp_path.open("w", encoding="utf-8", newline="") as handle:
+        handle.writelines(client_section)
+        if client_section and not client_section[-1].endswith("\n"):
+            handle.write("\n")
+        handle.write("\n")
+        handle.writelines(server_header)
+        handle.writelines(sliced_lines)
+    tmp_path.replace(log_path)
 
 
 def _format_seconds(value: int) -> str:

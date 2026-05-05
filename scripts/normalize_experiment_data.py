@@ -10,7 +10,8 @@ from typing import Iterable
 
 
 ARTIFACT_DIRS = {"log_file", "hw_file"}
-ARTIFACT_COLUMNS = ["hw-file", "log-client-file", "log-server-file"]
+ARTIFACT_COLUMNS = ["hw-file", "log-file"]
+LEGACY_LOG_COLUMNS = ("log-client-file", "log-server-file")
 
 OBJECTIVE_DIRECTIONS: dict[str, str] = {
     # RAG-style retrieval / answer quality metrics.
@@ -53,6 +54,8 @@ def normalize_experiment_data(root: str | Path = "experiment-data") -> dict[str,
         "id_columns_added": 0,
         "artifact_columns_added": 0,
         "objective_columns_renamed": 0,
+        "log_files_merged": 0,
+        "fidelity_columns_removed": 0,
     }
 
     summary["openhands_duplicate_dirs_fixed"] = _fix_openhands_duplicate_csv(data_root)
@@ -115,6 +118,16 @@ def _normalize_csv(csv_path: Path) -> dict[str, int]:
             normalized_row[target] = value or ""
         if "ID" in normalized_fieldnames and not normalized_row.get("ID"):
             normalized_row["ID"] = str(index)
+        if not normalized_row.get("log-file"):
+            log_ref = _merge_legacy_log_file(
+                csv_path.parent,
+                normalized_row.get("ID") or str(index),
+                row.get("log-client-file", ""),
+                row.get("log-server-file", ""),
+            )
+            if log_ref:
+                normalized_row["log-file"] = log_ref
+                stats["log_files_merged"] += 1
         for artifact_column in ARTIFACT_COLUMNS:
             normalized_row.setdefault(artifact_column, "")
         normalized_rows.append(normalized_row)
@@ -137,6 +150,8 @@ def _normalize_header(fieldnames: Iterable[str]) -> tuple[list[str], dict[str, s
         "id_columns_added": 0,
         "artifact_columns_added": 0,
         "objective_columns_renamed": 0,
+        "log_files_merged": 0,
+        "fidelity_columns_removed": 0,
     }
 
     normalized_fields: list[str] = []
@@ -146,6 +161,13 @@ def _normalize_header(fieldnames: Iterable[str]) -> tuple[list[str], dict[str, s
         if original_field == "":
             mapping[original_field] = None
             stats["empty_columns_removed"] += 1
+            continue
+        if original_field.startswith("FIDELITY_"):
+            mapping[original_field] = None
+            stats["fidelity_columns_removed"] += 1
+            continue
+        if original_field in LEGACY_LOG_COLUMNS:
+            mapping[original_field] = None
             continue
 
         target = _normalize_column_name(original_field)
@@ -179,6 +201,35 @@ def _normalize_column_name(column: str) -> str:
     if direction is None:
         direction = "-" if _looks_like_time_or_cost(metric) else "+"
     return f"{column}{direction}"
+
+
+def _merge_legacy_log_file(fidelity_dir: Path, row_id: str, client_ref: str, server_ref: str) -> str:
+    sections = []
+    for title, ref in (("CLIENT LOG", client_ref), ("SERVER LOG", server_ref)):
+        ref = (ref or "").strip()
+        if not ref:
+            continue
+        source = fidelity_dir / ref
+        if not source.is_file():
+            continue
+        sections.append((title, ref, source.read_text(encoding="utf-8", errors="replace")))
+
+    if not sections:
+        return ""
+
+    log_dir = fidelity_dir / "log_file"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    target = log_dir / f"id{row_id}.log"
+    with target.open("w", encoding="utf-8", newline="") as handle:
+        for index, (title, ref, content) in enumerate(sections):
+            if index:
+                handle.write("\n")
+            handle.write(f"===== {title} =====\n")
+            handle.write(f"source: {ref}\n\n")
+            handle.write(content)
+            if content and not content.endswith("\n"):
+                handle.write("\n")
+    return f"log_file/{target.name}"
 
 
 def _looks_like_time_or_cost(metric: str) -> bool:

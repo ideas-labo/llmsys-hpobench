@@ -50,7 +50,8 @@ id,config_id,repeat,tp_size,max_num_seqs,enable_prefix_caching,enable_speculativ
             self.assertEqual(len(rows), 2)
             self.assertEqual(rows[0]["ID"], "1")
             self.assertEqual(rows[0]["cfg-config_id"], "10")
-            self.assertEqual(rows[0]["FIDELITY_repeat"], "1")
+            self.assertNotIn("FIDELITY_rate", rows[0])
+            self.assertNotIn("FIDELITY_repeat", rows[0])
             self.assertEqual(rows[0]["cfg-max_num_seqs"], "1024")
             self.assertEqual(rows[0]["cfg-ai-enable_prefix_caching"], "True")
             self.assertEqual(rows[0]["cfg-ai-temperature"], "0.2")
@@ -58,22 +59,23 @@ id,config_id,repeat,tp_size,max_num_seqs,enable_prefix_caching,enable_speculativ
             self.assertEqual(rows[0]["obj-mean_ttft_ms-"], "12.3")
             self.assertEqual(rows[0]["cost-benchmark_duration_s"], "10.5")
             self.assertEqual(rows[0]["cost-gpu_kv_cache_usage_avg"], "0.55")
-            self.assertEqual(rows[0]["log-client-file"], "log_file/id1-client.log")
-            self.assertEqual(rows[0]["log-server-file"], "log_file/id1-server.log")
+            self.assertEqual(rows[0]["log-file"], "log_file/id1.log")
             self.assertEqual(rows[0]["hw-file"], "")
-            self.assertEqual(rows[1]["log-client-file"], "")
-            self.assertEqual(rows[1]["log-server-file"], "")
+            self.assertEqual(rows[1]["log-file"], "")
             self.assertEqual(rows[1]["hw-file"], "")
-            self.assertTrue((repeat_one_csv.parent / rows[0]["log-client-file"]).is_file())
-            self.assertTrue((repeat_one_csv.parent / rows[0]["log-server-file"]).is_file())
+            self.assertTrue((repeat_one_csv.parent / rows[0]["log-file"]).is_file())
+            merged_log = (repeat_one_csv.parent / rows[0]["log-file"]).read_text(encoding="utf-8")
+            self.assertIn("===== CLIENT LOG =====", merged_log)
+            self.assertIn("client one", merged_log)
+            self.assertIn("===== SERVER LOG =====", merged_log)
+            self.assertIn("server ten", merged_log)
 
             with repeat_two_csv.open("r", newline="", encoding="utf-8") as handle:
                 repeat_two_rows = list(csv.DictReader(handle))
 
             self.assertEqual(repeat_two_rows[0]["ID"], "3")
-            self.assertEqual(repeat_two_rows[0]["log-client-file"], "log_file/id3-client.log")
-            self.assertEqual(repeat_two_rows[0]["log-server-file"], "log_file/id3-server.log")
-            self.assertEqual((repeat_two_csv.parent / repeat_two_rows[0]["log-client-file"]).read_text(encoding="utf-8").strip(), "client two")
+            self.assertEqual(repeat_two_rows[0]["log-file"], "log_file/id3.log")
+            self.assertIn("client two", (repeat_two_csv.parent / repeat_two_rows[0]["log-file"]).read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

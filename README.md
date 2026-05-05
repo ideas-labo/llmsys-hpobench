@@ -1,6 +1,6 @@
 # LLMSYS-HPOBench
 
-LLMSYS-HPOBench is an offline benchmark and data organization project for LLM-system hyperparameter optimization. It collects sampled results from different LLM-system families, normalizes them into a shared tabular format, and exposes a lightweight HPOBench-like Python interface for evaluating observed configurations.
+LLMSYS-HPOBench is an offline benchmark and data organization project for LLM-system hyperparameter optimization. It collects sampled results from different LLM-system families, normalizes them into a shared tabular format, and exposes a lightweight Python interface for evaluating observed configurations.
 
 The project focuses on systems where both AI parameters and non-AI system parameters matter, such as inference engines, RAG pipelines, and agent frameworks. Each benchmark row links the measured objective/cost values back to the corresponding client log, server log, and hardware artifact when those artifacts are available.
 
@@ -28,6 +28,7 @@ LLMSYS-HPOBench/
 |   `-- RAG/
 |-- scripts/                        # Data normalization and log-processing scripts
 |   |-- normalize_experiment_data.py
+|   |-- normalize_sglang.py
 |   |-- normalize_vllm.py
 |   `-- slice_vllm_server_logs.py
 |-- tests/                          # Unit tests for loader and cleaning workflows
@@ -42,6 +43,7 @@ experiment-data/
 |-- Agent/
 |   `-- openhands/
 |-- Engine/
+|   |-- SGLang/
 |   `-- vLLM/
 `-- RAG/
     |-- html_rag/
@@ -54,6 +56,7 @@ Built-in system registrations currently include:
 | System | Registered Path |
 |---|---|
 | `vLLM` | `Engine/vLLM` |
+| `SGLang` | `Engine/SGLang` |
 | `openhands` | `Agent/openhands` |
 | `html_rag` | `RAG/html_rag` |
 | `LightRAG` | `RAG/LightRAG` |
@@ -68,8 +71,7 @@ Each fidelity directory contains one main CSV and optional artifact folders:
 `-- {fidelity_name}/
     |-- {fidelity_name}.csv
     |-- log_file/
-    |   |-- id1-client.log
-    |   `-- id1-server.log
+    |   `-- id1.log
     `-- hw_file/
         `-- id1-hw.csv
 ```
@@ -84,8 +86,7 @@ Main CSVs use prefixed columns:
 | Objective metrics | `obj-{name}+` or `obj-{name}-` |
 | Cost metrics | `cost-{name}` |
 | Hardware artifact | `hw-file` |
-| Client log artifact | `log-client-file` |
-| Server log artifact | `log-server-file` |
+| Combined log artifact | `log-file` |
 
 See [`format.md`](format.md) for the complete cleaning specification, including AI vs non-AI parameter rules, objective direction suffixes, artifact naming, and vLLM log slicing.
 
@@ -115,14 +116,12 @@ x = X.sample(fidelity=z, random_state=0)
 m = b.evaluate(config=x, fidelity=z)
 
 fidelity_dir = Path(m["fidelity"]["path"]).parent
-client_log = fidelity_dir / m["log"]["client-file"]
-server_log = fidelity_dir / m["log"]["server-file"]
+log_file = fidelity_dir / m["log"]["file"]
 
 print(m["perf"])
 print(m["cost"])
 print(m["hardware"])
-print(client_log, client_log.exists())
-print(server_log, server_log.exists())
+print(log_file, log_file.exists())
 ```
 
 The returned measurement groups are:
@@ -130,11 +129,11 @@ The returned measurement groups are:
 - `perf`: objective metrics from `obj-*` columns.
 - `cost`: cost/resource metrics from `cost-*` columns.
 - `hardware`: hardware metric columns and `hw-file`.
-- `log`: `log-client-file` and `log-server-file`.
+- `log`: `log-file`, whose target file uses titled sections for client and server logs.
 - `config`: merged AI and non-AI configuration values.
 - `config_ai`: values from `cfg-ai-*`.
 - `config_non_ai`: values from `cfg-*`.
-- `fidelity`: fidelity name, CSV path, and optional `FIDELITY_*` values.
+- `fidelity`: fidelity name and CSV path. Fidelity factor values are encoded in the fidelity directory/CSV file name, not duplicated as CSV columns.
 - `row`: the original parsed CSV row.
 
 By default, `Benchmark.evaluate()` returns the nearest observed row if an exact configuration is not found. Use `Benchmark(..., on_missing="error")` to require exact matches.
@@ -150,8 +149,16 @@ uv run python scripts/normalize_experiment_data.py --root experiment-data
 Normalize raw vLLM sampling data:
 
 ```bash
-uv run python scripts/normalize_vllm.py --source vLLM --output experiment-data/Engine/vLLM --artifact-mode hardlink --overwrite
+uv run python scripts/normalize_vllm.py --source vLLM --output experiment-data/Engine/vLLM --overwrite
 ```
+
+Normalize raw SGLang sampling data in place:
+
+```bash
+uv run python scripts/normalize_sglang.py --root experiment-data/Engine/SGLang --remove-raw
+```
+
+The SGLang normalizer reads raw JSON result files, writes fidelity directories named as `{request_rate}-{burstiness}-{max_concurrency}-{gsp_num_groups}-{gsp_system_prompt_len}`, and materializes one combined `log-file` per sample. The server section is timestamp-sliced to the matching client run window when server lines are available; otherwise it records a metadata-only server section.
 
 Slice normalized vLLM server logs so each row links only the server-side segment for that sampled client run:
 
@@ -168,7 +175,7 @@ At a high level:
 1. Place data under `experiment-data/<category>/<system>/`.
 2. Make every fidelity directory contain exactly one main CSV named after the fidelity.
 3. Use the column prefixes defined in [`format.md`](format.md).
-4. Add artifact references through `hw-file`, `log-client-file`, and `log-server-file`.
+4. Add artifact references through `hw-file` and `log-file`.
 5. Register the system in `SYSTEM_REGISTRY` in [`llmsys_hpobench.py`](llmsys_hpobench.py), or register it at runtime with `register_system()`.
 6. Add a system manual under `manuals/<category>/<system>.md`.
 7. Add or update tests when loader behavior or cleaning logic changes.
@@ -193,7 +200,7 @@ The registered path must be relative to the benchmark data root.
 Run the current test suite:
 
 ```bash
-uv run python -m unittest tests.test_llmsys_hpobench tests.test_normalize_experiment_data tests.test_normalize_vllm tests.test_slice_vllm_server_logs -v
+uv run python -m unittest tests.test_llmsys_hpobench tests.test_normalize_experiment_data tests.test_normalize_vllm tests.test_normalize_sglang tests.test_slice_vllm_server_logs -v
 ```
 
 Useful smoke tests:

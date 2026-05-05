@@ -99,11 +99,11 @@ def normalize_vllm_dataset(
 ) -> dict[str, int]:
     """Normalize raw vLLM data into ``output_dir``.
 
-    ``log-client-file`` links to per-run client logs. ``log-server-file`` links
-    to server logs for the sampled configuration. ``hw-file`` is reserved for
-    separate hardware metric artifacts; raw vLLM currently has no such separate
-    file, so the value is blank. Missing artifacts are represented by empty
-    cells.
+    ``log-file`` links to one per-run log file. The file contains titled
+    client/server sections when both sides are available. ``hw-file`` is
+    reserved for separate hardware metric artifacts; raw vLLM currently has no
+    such separate file, so the value is blank. Missing artifacts are represented
+    by empty cells.
     """
 
     source = Path(source_dir).resolve()
@@ -157,29 +157,22 @@ def normalize_vllm_dataset(
 
                 client_log = client_logs.get((config_id, fidelity_id))
                 if client_log is not None:
-                    normalized["log-client-file"] = _artifact_reference(
-                        client_log,
-                        fidelity_dir / "log_file" / f"id{row_id}-client.log",
-                        fidelity_dir,
-                        artifact_mode,
-                    )
                     summary["linked_client_logs"] += 1
                 else:
-                    normalized["log-client-file"] = ""
                     summary["missing_client_logs"] += 1
 
                 server_log = server_logs.get(config_id)
                 if server_log is not None:
-                    normalized["log-server-file"] = _artifact_reference(
-                        server_log,
-                        fidelity_dir / "log_file" / f"id{row_id}-server.log",
-                        fidelity_dir,
-                        artifact_mode,
-                    )
                     summary["linked_server_logs"] += 1
                 else:
-                    normalized["log-server-file"] = ""
                     summary["missing_server_logs"] += 1
+
+                normalized["log-file"] = _write_combined_log_file(
+                    client_log,
+                    server_log,
+                    fidelity_dir / "log_file" / f"id{row_id}.log",
+                    fidelity_dir,
+                )
 
                 normalized["hw-file"] = ""
                 summary["missing_hardware_files"] += 1
@@ -292,11 +285,6 @@ def _global_fidelity_id(source_csv: VllmCsv, repeat: str, spaces: dict[str, list
 def _normalize_row(row: dict[str, str], source_csv: VllmCsv, repeat: str) -> dict[str, str]:
     normalized = {
         "ID": row.get("id", ""),
-        "FIDELITY_rate": source_csv.rate,
-        "FIDELITY_burstiness": source_csv.burst,
-        "FIDELITY_max_concurrency": source_csv.conc,
-        "FIDELITY_num_prompts": source_csv.prompts,
-        "FIDELITY_repeat": repeat,
     }
     for column, value in row.items():
         target = _normalize_column_name(column)
@@ -322,39 +310,39 @@ def _normalize_column_name(column: str) -> str | None:
 
 
 def _fieldnames(source_columns: Iterable[str]) -> list[str]:
-    fields = [
-        "ID",
-        "FIDELITY_rate",
-        "FIDELITY_burstiness",
-        "FIDELITY_max_concurrency",
-        "FIDELITY_num_prompts",
-        "FIDELITY_repeat",
-    ]
+    fields = ["ID"]
     for column in source_columns:
         normalized = _normalize_column_name(column)
         if normalized is not None and normalized not in fields:
             fields.append(normalized)
-    fields.extend(["hw-file", "log-client-file", "log-server-file"])
+    fields.extend(["hw-file", "log-file"])
     return fields
 
 
-def _artifact_reference(
-    source: Path,
+def _write_combined_log_file(
+    client_log: Path | None,
+    server_log: Path | None,
     destination: Path,
     base_dir: Path,
-    mode: ArtifactMode,
 ) -> str:
-    if mode == "reference":
-        return _relative_path(source, base_dir)
+    sections = []
+    if client_log is not None:
+        sections.append(("CLIENT LOG", client_log.name, client_log.read_text(encoding="utf-8", errors="replace")))
+    if server_log is not None:
+        sections.append(("SERVER LOG", server_log.name, server_log.read_text(encoding="utf-8", errors="replace")))
+    if not sections:
+        return ""
 
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if not destination.exists():
-        if mode == "copy":
-            shutil.copy2(source, destination)
-        elif mode == "hardlink":
-            os.link(source, destination)
-        else:
-            raise ValueError(f"Unknown artifact mode: {mode}")
+    with destination.open("w", encoding="utf-8", newline="") as handle:
+        for index, (title, source_name, content) in enumerate(sections):
+            if index:
+                handle.write("\n")
+            handle.write(f"===== {title} =====\n")
+            handle.write(f"source: {source_name}\n\n")
+            handle.write(content)
+            if content and not content.endswith("\n"):
+                handle.write("\n")
     return _relative_path(destination, base_dir)
 
 
@@ -394,7 +382,7 @@ def main() -> int:
         "--artifact-mode",
         choices=["reference", "copy", "hardlink"],
         default="reference",
-        help="How log/hardware artifacts are linked from normalized CSV rows.",
+        help="Legacy compatibility option. Combined log-file artifacts are always materialized.",
     )
     parser.add_argument(
         "--overwrite",

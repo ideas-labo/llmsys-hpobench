@@ -12,12 +12,10 @@ m = b.evaluate(config=x, fidelity=z)
 
 fidelity_dir = Path(m["fidelity"]["path"]).parent
 
-client_log = fidelity_dir / m["log"]["client-file"]
-server_log = fidelity_dir / m["log"]["server-file"]
+log_file = fidelity_dir / m["log"]["file"]
 
 print(m["perf"])
 print(m["cost"])
 print(m["hardware"])
-print(client_log)
-print(server_log)
-print(client_log.exists(), server_log.exists())
+print(log_file)
+print(log_file.exists())

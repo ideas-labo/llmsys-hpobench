@@ -24,9 +24,9 @@ class NormalizeExperimentDataTests(unittest.TestCase):
             write_csv(
                 root / "RAG" / "naiverag" / "f1" / "f1.csv",
                 """
-cfg-a,obj-MRR,obj-Test_Time,cost-total
-x,0.7,12.5,3
-y,0.8,11.5,4
+FIDELITY_factor,cfg-a,obj-MRR,obj-Test_Time,cost-total
+f1,x,0.7,12.5,3
+f1,y,0.8,11.5,4
 """,
             )
 
@@ -37,8 +37,10 @@ y,0.8,11.5,4
             self.assertIn("obj-MRR+", header)
             self.assertIn("obj-Test_Time-", header)
             self.assertIn("hw-file", header)
-            self.assertIn("log-client-file", header)
-            self.assertIn("log-server-file", header)
+            self.assertIn("log-file", header)
+            self.assertNotIn("log-client-file", header)
+            self.assertNotIn("log-server-file", header)
+            self.assertNotIn("FIDELITY_factor", header)
             self.assertEqual(rows[0]["ID"], "1")
             self.assertEqual(rows[1]["ID"], "2")
             self.assertEqual(rows[0]["hw-file"], "")
@@ -91,6 +93,41 @@ new,1
             self.assertEqual(rows[0]["cfg-a"], "new")
             self.assertEqual(header[0], "ID")
             self.assertEqual(summary["openhands_duplicate_dirs_fixed"], 1)
+
+    def test_merges_legacy_client_and_server_logs_into_single_log_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "experiment-data"
+            fidelity_dir = root / "Engine" / "vLLM" / "f1"
+            write_csv(
+                fidelity_dir / "f1.csv",
+                """
+ID,cfg-a,obj-score+,hw-file,log-client-file,log-server-file
+1,1,0.5,,log_file/id1-client.log,log_file/id1-server.log
+2,2,0.6,,log_file/id2-client.log,
+""",
+            )
+            (fidelity_dir / "log_file").mkdir(parents=True, exist_ok=True)
+            (fidelity_dir / "log_file" / "id1-client.log").write_text("client one\n", encoding="utf-8")
+            (fidelity_dir / "log_file" / "id1-server.log").write_text("server one\n", encoding="utf-8")
+            (fidelity_dir / "log_file" / "id2-client.log").write_text("client two\n", encoding="utf-8")
+
+            summary = normalize_experiment_data(root)
+
+            header, rows = read_rows(fidelity_dir / "f1.csv")
+            self.assertIn("log-file", header)
+            self.assertNotIn("log-client-file", header)
+            self.assertNotIn("log-server-file", header)
+            self.assertEqual(rows[0]["log-file"], "log_file/id1.log")
+            self.assertEqual(rows[1]["log-file"], "log_file/id2.log")
+            merged = (fidelity_dir / rows[0]["log-file"]).read_text(encoding="utf-8")
+            self.assertIn("===== CLIENT LOG =====", merged)
+            self.assertIn("client one", merged)
+            self.assertIn("===== SERVER LOG =====", merged)
+            self.assertIn("server one", merged)
+            client_only = (fidelity_dir / rows[1]["log-file"]).read_text(encoding="utf-8")
+            self.assertIn("===== CLIENT LOG =====", client_only)
+            self.assertNotIn("===== SERVER LOG =====", client_only)
+            self.assertEqual(summary["log_files_merged"], 2)
 
 
 if __name__ == "__main__":

@@ -55,16 +55,40 @@ They are grouped into **Model Parameters**, **Speculative Decoding Parameters**,
 
 ## Environment / Fidelity Factors
 
-To ensure that evaluation results accurately reflect real-world deployments, several environmental and fidelity factors must be controlled. The table below lists the key factors considered in our vLLM evaluation:
+The current organized vLLM dataset uses workload-level fidelity factors encoded in each fidelity directory and CSV file name:
 
-| **Fidelity Factor**            | **Description**                                                                                              | **Configuration Range**                |
-|:------------------------------|:-------------------------------------------------------------------------------------------------------------|:---------------------------------------|
-| **Dataset Subset Size**        | The proportion of the dataset used, affecting representativeness and statistical significance                 | `[0.3, 0.6, 0.9]`           |
-| **Shared Prefix Ratio**        | Proportion of requests sharing the same prompt prefix, directly impacts caching efficiency and KV reuse       | `[0.1, 0.3, 0.6]`                     |
-| **Concurrency Level**          | Number of requests processed simultaneously, affecting batching and scheduler performance                     | `[1, 8, 16, 32]`                        |
-| **Request Arrival Pattern**    | Inter-arrival times of requests, modeled by a Gamma distribution parameterized by **burstiness** (shape) and **request_rate** (rate). A burstiness value of 1 results in an exponential distribution (standard Poisson process). Lower burstiness values (0 < burstiness < 1) create more bursty traffic, while higher values (burstiness > 1) produce more uniform arrivals. | `request_rate` ∈ `[1,5,10]` and `burstiness` ∈ `[0.5, 1.0, 2.0]` |
-| **Prompt Complexity**          | Configuration of prompt characteristics in the workload                                                       | No code, tables, or emojis included    |
-<!-- | **Arrival & Batch Distribution** | Statistical distribution characteristics for request arrival rate and batch sizing                            | `Normal distribution`                  | -->
+```text
+{request_rate}-{burstiness}-{max_concurrency}-{num_prompts}-r{repeat}
+```
+
+For example, `10.0-0.5-16-100-r1` means:
+
+- `request_rate = 10.0`
+- `burstiness = 0.5`
+- `max_concurrency = 16`
+- `num_prompts = 100`
+- `repeat = 1`
+
+These values are not duplicated as CSV columns. The fidelity directory and CSV file name are the source of truth for the workload fidelity point.
+
+The current fidelity grid is:
+
+| Fidelity Factor | Description | Current Values |
+|:----------------|:------------|:---------------|
+| `rate` | Target request submission rate used by the benchmark client. | `[5.0, 10.0, 15.0]` |
+| `burstiness` | Shape parameter for Gamma-distributed request inter-arrival times. `1.0` approximates Poisson arrivals, smaller values are more bursty, and larger values are more regular. | `[0.5, 1.0, 2.0]` |
+| `max_concurrency` | Maximum number of in-flight client requests. | `[4, 8, 16, 32]` |
+| `num_prompts` | Number of prompts sampled from the ShareGPT workload for one benchmark run. This acts as the current workload-size fidelity axis. | `[50, 100, 200]` |
+| `repeat` | Repeated run index for the same workload fidelity point. | `[1, 2]` |
+
+This gives `3 x 3 x 4 x 3 x 2 = 216` fidelity points.
+
+Notes:
+
+- The current dataset uses `num_prompts` rather than a dataset subset ratio.
+- Shared-prefix ratio is not a separate fidelity axis in the current organized data. Prefix-caching behavior appears as an AI/system configuration parameter through `cfg-ai-enable_prefix_caching`.
+- Prompt complexity is fixed by the ShareGPT workload and is not encoded as a fidelity axis.
+
 ---
 In the evaluation of original paper, authors synthesize workloads based on two distinct datasets to capture a variety of real-world scenarios:
 

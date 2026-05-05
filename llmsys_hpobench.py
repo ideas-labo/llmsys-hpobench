@@ -17,8 +17,8 @@ CSV columns are grouped by prefix:
     hw-*      -> hardware metrics / hardware file identifiers
     log-*     -> log metadata / log file identifiers
 
-Fidelity columns can be stored as FIDELITY_* in the CSV, and each CSV file is
-treated as one fidelity/environment setting.
+Each CSV file is treated as one fidelity/environment setting. Fidelity factor
+values should be encoded in the fidelity directory and CSV file name.
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ from typing import Any, Iterable, Mapping
 
 SYSTEM_REGISTRY: dict[str, str] = {
     "vLLM": "Engine/vLLM",
+    "SGLang": "Engine/SGLang",
     "openhands": "Agent/openhands",
     "html_rag": "RAG/html_rag",
     "LightRAG": "RAG/LightRAG",
@@ -448,6 +449,8 @@ class Benchmark:
     @staticmethod
     def _is_benchmark_csv(csv_path: Path) -> bool:
         artifact_dirs = {"hw_file", "log_file"}
+        if csv_path.name == "sglang_multi_fidelity_benchmark_log.csv":
+            return False
         return not any(part in artifact_dirs for part in csv_path.parts)
 
     def _records_for_fidelity(self, fidelity: Fidelity | str | Mapping[str, Any] | None) -> list[_Record]:
@@ -488,14 +491,7 @@ class Benchmark:
         for key, value in config.items():
             candidate_value = candidate.get(key)
             if isinstance(candidate_value, (int, float)) and isinstance(value, (int, float)):
-                values = [
-                    record.config.get(key)
-                    for record in self.records
-                    if isinstance(record.config.get(key), (int, float))
-                ]
-                span = (max(values) - min(values)) if values else 0
-                denom = span if span else 1
-                total += abs(float(candidate_value) - float(value)) / denom
+                total += abs(float(candidate_value) - float(value))
             else:
                 total += 0.0 if candidate_value == value else 1.0
         return total
@@ -513,7 +509,11 @@ def main() -> int:
         default="experiment-data",
         help="Dataset root containing category/system folders.",
     )
-    parser.add_argument("--system", required=True, help="System folder name, e.g. html_rag, LightRAG, naiverag, vLLM.")
+    parser.add_argument(
+        "--system",
+        required=True,
+        help="System folder name, e.g. html_rag, LightRAG, naiverag, vLLM, SGLang.",
+    )
     parser.add_argument("--budget", type=int, default=3, help="Number of random samples to print.")
     args = parser.parse_args()
 

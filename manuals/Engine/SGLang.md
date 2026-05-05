@@ -99,14 +99,27 @@ These parameters have the most significant impact on generation behavior in SGLa
 
 ## Environment / Fidelity Factors
 
-To ensure that evaluation results accurately reflect real-world deployments, several environmental and fidelity factors must be controlled. The table below lists the key factors considered in our SGLang evaluation:
+To ensure that evaluation results accurately reflect real-world deployments, several environmental and fidelity factors must be controlled. The normalized SGLang data stores these values in the fidelity directory and CSV file name, not as `FIDELITY_*` CSV columns.
+
+The fidelity name uses the same order as `experiment-data/tab-format.tex`:
+
+```text
+{request_rate}-{burstiness}-{max_concurrency}-{gsp_num_groups}-{gsp_system_prompt_len}
+```
+
+Example:
+
+```text
+15.0-2.0-16-16-1024/15.0-2.0-16-16-1024.csv
+```
 
 | **Fidelity Factor**            | **Description**                                                                                              | **Configuration Range**                |
 |:------------------------------|:-------------------------------------------------------------------------------------------------------------|:---------------------------------------|
 | **Request Rate**               | Target request submission rate in requests per second. `inf` represents maximum throughput testing without rate limiting. | `[5.0, 15.0, inf]`                      |
-| **Concurrency Level**          | Number of requests processed simultaneously, affecting batching and scheduler performance                     | `[16]` (fixed at medium level)                        |
 | **Burstiness**    | Shape parameter of the Gamma distribution used to model request inter-arrival times. A value of `1.0` results in an exponential distribution (standard Poisson process with uniform arrivals). Higher values (e.g., `2.0`) produce more bursty traffic patterns with temporal clustering of requests. | `[1.0, 2.0]` |
-| **Dataset Type**               | The dataset used for evaluation, which determines workload characteristics and cache behavior                                   | `{generated-shared-prefix}`  |
+| **Concurrency Level**          | Number of requests processed simultaneously, affecting batching and scheduler performance                     | `[16, 32]` |
+| **GSP Number of Groups**       | Number of unique shared-prefix groups in the generated shared-prefix workload. | `[16, 32, 64]` |
+| **GSP System Prompt Length**   | Length of the shared system prompt in tokens. | `[1024, 2048, 4096]` |
 
 ---
 
@@ -116,9 +129,9 @@ When the `generated-shared-prefix` dataset is selected, the following parameters
 
 | **Parameter**                  | **Type**     | **Configuration Range** | **Description**                                                                 |
 |----------------------------|----------|---------|-----------------------------------------------------------------------------|
-| `gsp_num_groups`         | Integer  | `[32, 64, 128]`    | Number of unique system prompts (shared prefixes). Lower values result in higher cache hit rates, while higher values reduce prefix reuse and test cache capacity under diverse workloads.                                           |
-| `gsp_prompts_per_group`  | Integer  | `[16]`    | Number of unique questions per system prompt (fixed). Each group reuses the same system prompt with different questions, simulating shared-context scenarios.                                               |
-| `gsp_system_prompt_len`  | Integer  | `[2048]`  | Length of the system prompt (shared prefix) in tokens (fixed). Longer prefixes increase memory savings from caching but also increase initial prefill cost.                                     |
+| `gsp_num_groups`         | Integer  | `[16, 32, 64]`    | Number of unique system prompts (shared prefixes). Lower values result in higher cache hit rates, while higher values reduce prefix reuse and test cache capacity under diverse workloads.                                           |
+| `gsp_prompts_per_group`  | Integer  | `[8]`    | Number of unique questions per system prompt (fixed). Each group reuses the same system prompt with different questions, simulating shared-context scenarios.                                               |
+| `gsp_system_prompt_len`  | Integer  | `[1024, 2048, 4096]`  | Length of the system prompt (shared prefix) in tokens. Longer prefixes increase memory savings from caching but also increase initial prefill cost.                                     |
 | `gsp_question_len`       | Integer  | `[128]`   | Length of each question appended to the system prompt, in tokens (fixed). Represents the unique, non-cacheable portion of each request.                                          |
 | `gsp_output_len`         | Integer  | `[256]`   | Target length of generated outputs in tokens (fixed). Controls decoding phase duration and KV cache growth during generation.                                          |
 
@@ -143,7 +156,7 @@ In the evaluation of original paper, authors synthesize workloads based on two d
 
 ## Performance Metrics
 
-When evaluating vLLM, focus on the following key performance metrics:
+When evaluating SGLang, focus on the following key performance metrics:
 
 - **Throughput (Tokens/sec):** The number of tokens processed per second, which reflects the overall efficiency of the inference engine.
 - **Time to First Token (TTFT):** The latency from when a request is received to when the first token is generated.
@@ -166,17 +179,17 @@ When evaluating vLLM, focus on the following key performance metrics:
 
 ## Cost / Runtime Considerations
 
-When evaluating vLLM performance, we focus on three key metrics that directly reflect resource consumption and runtime efficiency:
+When evaluating SGLang performance, we focus on metrics that directly reflect resource consumption and runtime efficiency:
 
 ### 1. **cache_usage_perc_stats**  
-- **Definition:** Percentage of GPU memory occupied by vLLM’s KV cache or internal buffers throughout the benchmark run.  
+- **Definition:** Percentage of GPU memory occupied by SGLang’s KV cache or internal buffers throughout the benchmark run.  
 - **Why it matters:**  
   - Indicates memory pressure; sustained high utilization (e.g., > 90%) may risk OOM or reduced batch capacity.  
   - Helps tune parameters like `block-size`, `max-num-batched-tokens`, or enable `chunked-prefill` for efficiency.  
 - **Collection method:** Exposed via the `vllm:cache_usage_perc` metric (0.85 means 85% usage) :contentReference[oaicite:1]{index=1}.  
 
 ### 2. **process_cpu_seconds_stats**  
-- **Definition:** Total CPU time consumed by the vLLM process (sum of user + system CPU seconds).  
+- **Definition:** Total CPU time consumed by the SGLang process (sum of user + system CPU seconds).  
 - **Why it matters:**  
   - Reflects CPU overhead for tokenization, scheduling, memory management, logging, etc.  
   - High CPU consumption may cause scheduling bottlenecks even if GPU remains underutilized.  
