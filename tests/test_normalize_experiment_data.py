@@ -94,7 +94,7 @@ new,1
             self.assertEqual(header[0], "ID")
             self.assertEqual(summary["openhands_duplicate_dirs_fixed"], 1)
 
-    def test_merges_legacy_client_and_server_logs_into_single_log_file(self):
+    def test_merges_legacy_client_and_server_logs_into_canonical_log_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "experiment-data"
             fidelity_dir = root / "Engine" / "vLLM" / "f1"
@@ -117,8 +117,8 @@ ID,cfg-a,obj-score+,hw-file,log-client-file,log-server-file
             self.assertIn("log-file", header)
             self.assertNotIn("log-client-file", header)
             self.assertNotIn("log-server-file", header)
-            self.assertEqual(rows[0]["log-file"], "log_file/id1.log")
-            self.assertEqual(rows[1]["log-file"], "log_file/id2.log")
+            self.assertEqual(rows[0]["log-file"], "log_file/log-1.txt")
+            self.assertEqual(rows[1]["log-file"], "log_file/log-2.txt")
             merged = (fidelity_dir / rows[0]["log-file"]).read_text(encoding="utf-8")
             self.assertIn("===== CLIENT LOG =====", merged)
             self.assertIn("client one", merged)
@@ -128,6 +128,32 @@ ID,cfg-a,obj-score+,hw-file,log-client-file,log-server-file
             self.assertIn("===== CLIENT LOG =====", client_only)
             self.assertNotIn("===== SERVER LOG =====", client_only)
             self.assertEqual(summary["log_files_merged"], 2)
+
+    def test_canonicalizes_existing_artifact_file_names(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "experiment-data"
+            fidelity_dir = root / "Engine" / "SGLang" / "f1"
+            write_csv(
+                fidelity_dir / "f1.csv",
+                """
+ID,cfg-a,obj-score+,hw-file,log-file
+1,1,0.5,hw_file/id1-hw.csv,log_file/failed_exit-3_20250101.log
+""",
+            )
+            (fidelity_dir / "hw_file").mkdir(parents=True, exist_ok=True)
+            (fidelity_dir / "log_file").mkdir(parents=True, exist_ok=True)
+            (fidelity_dir / "hw_file" / "id1-hw.csv").write_text("gpu\n", encoding="utf-8")
+            (fidelity_dir / "log_file" / "failed_exit-3_20250101.log").write_text("failed\n", encoding="utf-8")
+
+            summary = normalize_experiment_data(root)
+
+            _, rows = read_rows(fidelity_dir / "f1.csv")
+            self.assertEqual(rows[0]["hw-file"], "hw_file/hw-1.txt")
+            self.assertEqual(rows[0]["log-file"], "log_file/log-1.txt")
+            self.assertTrue((fidelity_dir / "hw_file" / "hw-1.txt").is_file())
+            self.assertTrue((fidelity_dir / "log_file" / "log-1.txt").is_file())
+            self.assertFalse((fidelity_dir / "log_file" / "failed_exit-3_20250101.log").exists())
+            self.assertEqual(summary["artifact_files_canonicalized"], 2)
 
 
 if __name__ == "__main__":

@@ -124,7 +124,7 @@ STDERR: [2026-03-21 21:10:00] outside sample
             self.assertEqual(rows[0]["obj-mean_ttft_ms-"], "7.7")
             self.assertEqual(rows[0]["cost-duration"], "12.5")
             self.assertEqual(rows[0]["hw-file"], "")
-            self.assertEqual(rows[0]["log-file"], "log_file/id1.log")
+            self.assertEqual(rows[0]["log-file"], "log_file/log-1.txt")
             self.assertNotIn("FIDELITY_request_rate", rows[0])
             self.assertNotIn("generated_texts", rows[0])
 
@@ -144,7 +144,7 @@ STDERR: [2026-03-21 21:10:00] outside sample
                 fidelity_dir / "5.0-1.0-16-16-1024.csv",
                 """
 ID,cfg-config_id,cfg-tp_size,cfg-pp_size,cfg-max_running_requests,cfg-max_total_tokens,cfg-chunked_prefill_size,cfg-gpu_memory_utilization,cfg-attention_backend,cfg-context_length,cfg-enable_torch_compile,cfg-enable_p2p_check,cfg-disable_radix_cache,cfg-ai-temperature,cfg-ai-top_k,cfg-ai-top_p,cfg-ai-repetition_penalty,cfg-ai-frequency_penalty,cost-duration,cost-total_input_tokens,cost-total_output_tokens,cost-total_output_tokens_retokenized,cost-concurrency,obj-completed+,obj-request_throughput+,obj-input_throughput+,obj-output_throughput+,obj-mean_e2e_latency_ms-,obj-median_e2e_latency_ms-,obj-std_e2e_latency_ms-,obj-p99_e2e_latency_ms-,obj-mean_ttft_ms-,obj-median_ttft_ms-,obj-std_ttft_ms-,obj-p99_ttft_ms-,obj-mean_tpot_ms-,obj-median_tpot_ms-,obj-std_tpot_ms-,obj-p99_tpot_ms-,obj-mean_itl_ms-,obj-median_itl_ms-,obj-std_itl_ms-,obj-p95_itl_ms-,obj-p99_itl_ms-,hw-file,log-file
-1,1,1,1,640,20480,10240,0.85,flashinfer,8192,True,True,False,0.9,51,0.55,1.2,2.0,31.5,154032,32768,32765,15.6,128,4.0,4878,1037,,,,,,,,,,,,,,,,,,log_file/id1.log
+1,1,1,1,640,20480,10240,0.85,flashinfer,8192,True,True,False,0.9,51,0.55,1.2,2.0,31.5,154032,32768,32765,15.6,128,4.0,4878,1037,,,,,,,,,,,,,,,,,,log_file/log-1.txt
 """,
             )
             write_text(
@@ -170,7 +170,7 @@ tp_size,pp_size,max_running_requests,max_total_tokens,chunked_prefill_size,gpu_m
             self.assertEqual(failed["cfg-ai-temperature"], "0.5")
             self.assertEqual(failed["cost-duration"], "")
             self.assertEqual(failed["obj-completed+"], "0")
-            self.assertEqual(failed["log-file"], "log_file/failed_exit-3_20260502_024912_2.log")
+            self.assertEqual(failed["log-file"], "log_file/log-2.txt")
 
             failed_log = (fidelity_dir / failed["log-file"]).read_text(encoding="utf-8")
             self.assertIn("Skip config 2: context_length=13312 exceeds 8192", failed_log)

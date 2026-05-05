@@ -59,7 +59,7 @@ id,config_id,repeat,tp_size,max_num_seqs,enable_prefix_caching,enable_speculativ
             self.assertEqual(rows[0]["obj-mean_ttft_ms-"], "12.3")
             self.assertEqual(rows[0]["cost-benchmark_duration_s"], "10.5")
             self.assertEqual(rows[0]["cost-gpu_kv_cache_usage_avg"], "0.55")
-            self.assertEqual(rows[0]["log-file"], "log_file/id1.log")
+            self.assertEqual(rows[0]["log-file"], "log_file/log-1.txt")
             self.assertEqual(rows[0]["hw-file"], "")
             self.assertEqual(rows[1]["log-file"], "")
             self.assertEqual(rows[1]["hw-file"], "")
@@ -74,7 +74,7 @@ id,config_id,repeat,tp_size,max_num_seqs,enable_prefix_caching,enable_speculativ
                 repeat_two_rows = list(csv.DictReader(handle))
 
             self.assertEqual(repeat_two_rows[0]["ID"], "3")
-            self.assertEqual(repeat_two_rows[0]["log-file"], "log_file/id3.log")
+            self.assertEqual(repeat_two_rows[0]["log-file"], "log_file/log-3.txt")
             self.assertIn("client two", (repeat_two_csv.parent / repeat_two_rows[0]["log-file"]).read_text(encoding="utf-8"))
 
 

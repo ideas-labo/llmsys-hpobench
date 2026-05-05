@@ -1,0 +1,28 @@
+===== SAMPLE LOG =====
+source: qwen2.5-7b-instruct_bb1_c10_stl2048_one__t0.0_m2048_conc_file_fs1_fmc8_dl_ufa1.log
+
+2026-04-30 07:17:35,452 INFO  [mf_sampler.agent_runner] Initialized AgentRunner (mode=agent_protocol, prompt_style=concise)
+2026-04-30 07:17:35,452 INFO  [mf_sampler.agent_runner] Starting workload run_complex_r1_code_generation_20260429_231735 (agent_protocol mode, 1 tasks)
+2026-04-30 07:17:35,452 INFO  [mf_sampler.agent_runner]   Executing task complex_r1_code_generation_task_000
+2026-04-30 07:18:35,330 INFO  [mf_sampler.agent_runner] Completed workload run_complex_r1_code_generation_20260429_231735: 1/1 success, 0 failures, 0 timeouts (step=0, wall=0)
+2026-04-30 07:18:35,331 INFO  [mf_sampler.metrics_collector] Collected metrics for run_complex_r1_code_generation_20260429_231735: success_rate=50.00%, cost=$0.0000
+
+===== SERVER LOG OFFSETS =====
+{
+  "autogpt": {
+    "bytes_written": 8958,
+    "end_byte": 3381666,
+    "end_ts": 1777504715.3320646,
+    "path": "/home/ubuntu/work/AutoGPT/classic/benchmark/logs/autogpt_server.log",
+    "start_byte": 3372708,
+    "start_ts": 1777504655.4522564
+  },
+  "vllm": {
+    "bytes_written": 4327,
+    "end_byte": 4609927,
+    "end_ts": 1777504715.3320646,
+    "path": "/home/ubuntu/work/AutoGPT/classic/benchmark/logs/vllm.log",
+    "start_byte": 4605600,
+    "start_ts": 1777504655.4522564
+  }
+}

@@ -197,7 +197,7 @@ def normalize_sglang_dataset(
             row["log-file"] = _write_combined_log_file(
                 client_log,
                 server_log,
-                destination=fidelity_dir / "log_file" / f"id{index}.log",
+                destination=fidelity_dir / "log_file" / f"log-{index}.txt",
                 base_dir=fidelity_dir,
                 padding_seconds=padding_seconds,
             )
@@ -244,6 +244,10 @@ def include_sglang_failed_log_samples(
     root_path = Path(root).resolve()
     log_csv = root_path / log_csv_name
     if not log_csv.is_file():
+        log_csv = root_path / "log_file" / log_csv_name
+    if not log_csv.is_file():
+        log_csv = root_path / "raw_metadata" / log_csv_name
+    if not log_csv.is_file():
         raise FileNotFoundError(f"SGLang multi-fidelity log CSV not found: {log_csv}")
 
     summary = {
@@ -264,10 +268,10 @@ def include_sglang_failed_log_samples(
             fidelity_name = _failed_log_fidelity_name(raw_row)
             fidelity_dir = root_path / fidelity_name
             csv_path = fidelity_dir / f"{fidelity_name}.csv"
-            log_file = _failed_log_file_name(raw_row, exit_code=exit_code, source_line=source_line)
-            if _csv_references_log(csv_path, log_file):
+            if _csv_has_config_id(csv_path, f"failed-{source_line}"):
                 summary["skipped_existing_failed_rows"] += 1
                 continue
+            log_file = _failed_log_file_name(csv_path, pending_count=len(pending_by_csv.get(csv_path, [])))
 
             if not csv_path.exists():
                 summary["created_fidelity_csv_files"] += 1
@@ -321,17 +325,31 @@ def _failed_log_fidelity_name(row: dict[str, Any]) -> str:
     )
 
 
-def _failed_log_file_name(row: dict[str, Any], *, exit_code: int, source_line: int) -> str:
-    timestamp = _stringify(row.get("timestamp")) or "unknown"
-    return f"log_file/failed_exit{exit_code}_{timestamp}_{source_line}.log"
+def _failed_log_file_name(csv_path: Path, *, pending_count: int = 0) -> str:
+    next_id = _next_csv_row_id(csv_path) + pending_count
+    return f"log_file/log-{next_id}.txt"
 
 
-def _csv_references_log(csv_path: Path, log_file: str) -> bool:
+def _next_csv_row_id(csv_path: Path) -> int:
+    if not csv_path.is_file():
+        return 1
+    with csv_path.open("r", newline="", encoding="utf-8-sig", errors="replace") as handle:
+        reader = csv.DictReader(handle)
+        ids = []
+        for row in reader:
+            try:
+                ids.append(int(_stringify(row.get("ID"))))
+            except ValueError:
+                continue
+    return (max(ids) if ids else 0) + 1
+
+
+def _csv_has_config_id(csv_path: Path, config_id: str) -> bool:
     if not csv_path.is_file():
         return False
     with csv_path.open("r", newline="", encoding="utf-8-sig", errors="replace") as handle:
         reader = csv.DictReader(handle)
-        return any(row.get("log-file") == log_file for row in reader)
+        return any(row.get("cfg-config_id") == config_id for row in reader)
 
 
 def _normalize_failed_log_row(raw_row: dict[str, Any], *, source_line: int, log_file: str) -> dict[str, Any]:

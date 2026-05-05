@@ -170,7 +170,7 @@ def normalize_vllm_dataset(
                 normalized["log-file"] = _write_combined_log_file(
                     client_log,
                     server_log,
-                    fidelity_dir / "log_file" / f"id{row_id}.log",
+                    fidelity_dir / "log_file" / f"log-{row_id}.txt",
                     fidelity_dir,
                 )
 

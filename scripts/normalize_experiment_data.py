@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import shutil
 from pathlib import Path
 from typing import Iterable
@@ -12,6 +13,7 @@ from typing import Iterable
 ARTIFACT_DIRS = {"log_file", "hw_file"}
 ARTIFACT_COLUMNS = ["hw-file", "log-file"]
 LEGACY_LOG_COLUMNS = ("log-client-file", "log-server-file")
+IGNORED_BENCHMARK_CSV_NAMES = {"sglang_multi_fidelity_benchmark_log.csv"}
 
 OBJECTIVE_DIRECTIONS: dict[str, str] = {
     # RAG-style retrieval / answer quality metrics.
@@ -56,6 +58,7 @@ def normalize_experiment_data(root: str | Path = "experiment-data") -> dict[str,
         "objective_columns_renamed": 0,
         "log_files_merged": 0,
         "fidelity_columns_removed": 0,
+        "artifact_files_canonicalized": 0,
     }
 
     summary["openhands_duplicate_dirs_fixed"] = _fix_openhands_duplicate_csv(data_root)
@@ -95,6 +98,8 @@ def _fix_openhands_duplicate_csv(root: Path) -> int:
 def _benchmark_csvs(root: Path) -> list[Path]:
     csvs: list[Path] = []
     for csv_path in root.rglob("*.csv"):
+        if csv_path.name in IGNORED_BENCHMARK_CSV_NAMES:
+            continue
         if any(part in ARTIFACT_DIRS for part in csv_path.parts):
             continue
         csvs.append(csv_path)
@@ -128,6 +133,12 @@ def _normalize_csv(csv_path: Path) -> dict[str, int]:
             if log_ref:
                 normalized_row["log-file"] = log_ref
                 stats["log_files_merged"] += 1
+        canonicalized = _canonicalize_artifact_files(
+            csv_path.parent,
+            normalized_row.get("ID") or str(index),
+            normalized_row,
+        )
+        stats["artifact_files_canonicalized"] += canonicalized
         for artifact_column in ARTIFACT_COLUMNS:
             normalized_row.setdefault(artifact_column, "")
         normalized_rows.append(normalized_row)
@@ -152,6 +163,7 @@ def _normalize_header(fieldnames: Iterable[str]) -> tuple[list[str], dict[str, s
         "objective_columns_renamed": 0,
         "log_files_merged": 0,
         "fidelity_columns_removed": 0,
+        "artifact_files_canonicalized": 0,
     }
 
     normalized_fields: list[str] = []
@@ -219,7 +231,7 @@ def _merge_legacy_log_file(fidelity_dir: Path, row_id: str, client_ref: str, ser
 
     log_dir = fidelity_dir / "log_file"
     log_dir.mkdir(parents=True, exist_ok=True)
-    target = log_dir / f"id{row_id}.log"
+    target = log_dir / f"log-{row_id}.txt"
     with target.open("w", encoding="utf-8", newline="") as handle:
         for index, (title, ref, content) in enumerate(sections):
             if index:
@@ -230,6 +242,60 @@ def _merge_legacy_log_file(fidelity_dir: Path, row_id: str, client_ref: str, ser
             if content and not content.endswith("\n"):
                 handle.write("\n")
     return f"log_file/{target.name}"
+
+
+def _canonicalize_artifact_files(fidelity_dir: Path, row_id: str, row: dict[str, str]) -> int:
+    count = 0
+    count += _canonicalize_artifact_file(
+        fidelity_dir,
+        row,
+        column="log-file",
+        artifact_dir="log_file",
+        filename=f"log-{row_id}.txt",
+    )
+    count += _canonicalize_artifact_file(
+        fidelity_dir,
+        row,
+        column="hw-file",
+        artifact_dir="hw_file",
+        filename=f"hw-{row_id}.txt",
+    )
+    return count
+
+
+def _canonicalize_artifact_file(
+    fidelity_dir: Path,
+    row: dict[str, str],
+    *,
+    column: str,
+    artifact_dir: str,
+    filename: str,
+) -> int:
+    ref = (row.get(column) or "").strip()
+    if not ref:
+        return 0
+
+    target = fidelity_dir / artifact_dir / filename
+    target_ref = _relative_path(target, fidelity_dir)
+    if ref == target_ref:
+        return 0
+
+    source = fidelity_dir / ref
+    if source.is_file():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            target.unlink()
+        shutil.move(str(source), str(target))
+        row[column] = target_ref
+        return 1
+
+    if target.is_file():
+        row[column] = target_ref
+    return 0
+
+
+def _relative_path(path: Path, base_dir: Path) -> str:
+    return os.path.relpath(path.resolve(), base_dir.resolve()).replace(os.sep, "/")
 
 
 def _looks_like_time_or_cost(metric: str) -> bool:

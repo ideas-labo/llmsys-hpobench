@@ -13,7 +13,7 @@ Before starting, read:
 Use these names consistently in your contribution:
 
 - `<category>`: top-level benchmark family, for example `Engine`, `RAG`, or `Agent`.
-- `<system>`: unique system name used in code, for example `vLLM`, `SGLang`, `LightRAG`, or `openhands`.
+- `<system>`: unique system name used in code, for example `vLLM`, `SGLang`, `autogpt`, `LightRAG`, or `openhands`.
 - `<fidelity_name>`: one workload/fidelity combination, for example `5.0-0.5-4-50-r1`.
 - `<system_manual>`: documentation file under `manuals/<category>/<system>.md`.
 
@@ -42,9 +42,9 @@ experiment-data/
         `-- <fidelity_name>/
             |-- <fidelity_name>.csv
             |-- log_file/
-            |   `-- id1.log
+            |   `-- log-1.txt
             `-- hw_file/
-                `-- id1-hw.csv
+                `-- hw-1.txt
 ```
 
 Rules:
@@ -61,7 +61,7 @@ Every main CSV must follow [`format.md`](format.md):
 
 ```csv
 ID,cfg-...,cfg-ai-...,obj-score+,obj-latency-,cost-...,hw-file,log-file
-1,...,...,...,...,...,,log_file/id1.log
+1,...,...,...,...,...,hw_file/hw-1.txt,log_file/log-1.txt
 ```
 
 Column rules:
@@ -83,7 +83,7 @@ If you are converting raw CSVs, run the all-system normalizer:
 uv run python scripts/normalize_experiment_data.py --root experiment-data
 ```
 
-If your raw data needs special handling, add a focused normalizer under `scripts/`. See [`scripts/normalize_vllm.py`](scripts/normalize_vllm.py) for raw vLLM CSVs and [`scripts/normalize_sglang.py`](scripts/normalize_sglang.py) for raw SGLang JSON samples. For systems with shared lifecycle logs, also add timestamp slicing when a row should reference only the log segment for that sampled run; [`scripts/slice_vllm_server_logs.py`](scripts/slice_vllm_server_logs.py) shows how to align client and server timestamps, including server logs that cross midnight.
+If your raw data needs special handling, add a focused normalizer under `scripts/`. See [`scripts/normalize_vllm.py`](scripts/normalize_vllm.py) for raw vLLM CSVs, [`scripts/normalize_sglang.py`](scripts/normalize_sglang.py) for raw SGLang JSON samples, and [`scripts/normalize_autogpt.py`](scripts/normalize_autogpt.py) for AutoGPT samples with hardware snapshots. For systems with shared lifecycle logs, also add timestamp slicing when a row should reference only the log segment for that sampled run; [`scripts/slice_vllm_server_logs.py`](scripts/slice_vllm_server_logs.py) shows how to align client and server timestamps, including server logs that cross midnight.
 
 ## Step 4: Register the System
 
@@ -94,6 +94,7 @@ SYSTEM_REGISTRY: dict[str, str] = {
     "vLLM": "Engine/vLLM",
     "SGLang": "Engine/SGLang",
     "openhands": "Agent/openhands",
+    "autogpt": "Agent/autogpt",
     "html_rag": "RAG/html_rag",
     "LightRAG": "RAG/LightRAG",
     "naiverag": "RAG/naiverag",
@@ -135,6 +136,7 @@ Existing examples:
 
 - [`manuals/Engine/vLLM.md`](manuals/Engine/vLLM.md)
 - [`manuals/Engine/SGLang.md`](manuals/Engine/SGLang.md)
+- [`manuals/Agent/AutoGPT.md`](manuals/Agent/AutoGPT.md)
 - [`manuals/RAG/LightRAG.md`](manuals/RAG/LightRAG.md)
 - [`manuals/Agent/Openhands.md`](manuals/Agent/Openhands.md)
 
@@ -148,6 +150,7 @@ Relevant existing tests:
 - [`tests/test_normalize_experiment_data.py`](tests/test_normalize_experiment_data.py): common data-format normalization.
 - [`tests/test_normalize_vllm.py`](tests/test_normalize_vllm.py): vLLM-specific cleaning workflow.
 - [`tests/test_normalize_sglang.py`](tests/test_normalize_sglang.py): SGLang-specific JSON cleaning workflow.
+- [`tests/test_normalize_autogpt.py`](tests/test_normalize_autogpt.py): AutoGPT-specific JSON, log, and hardware workflow.
 - [`tests/test_slice_vllm_server_logs.py`](tests/test_slice_vllm_server_logs.py): vLLM server-log slicing and timestamp alignment.
 
 For a new built-in system, add a small synthetic fixture test that proves:
@@ -167,7 +170,7 @@ uv run python scripts/normalize_experiment_data.py --root experiment-data
 Then run the test suite:
 
 ```bash
-uv run python -m unittest tests.test_llmsys_hpobench tests.test_normalize_experiment_data tests.test_normalize_vllm tests.test_normalize_sglang tests.test_slice_vllm_server_logs -v
+uv run python -m unittest tests.test_llmsys_hpobench tests.test_normalize_experiment_data tests.test_normalize_vllm tests.test_normalize_sglang tests.test_normalize_autogpt tests.test_slice_vllm_server_logs -v
 ```
 
 Smoke-test your system:

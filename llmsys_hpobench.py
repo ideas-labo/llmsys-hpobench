@@ -37,6 +37,7 @@ SYSTEM_REGISTRY: dict[str, str] = {
     "vLLM": "Engine/vLLM",
     "SGLang": "Engine/SGLang",
     "openhands": "Agent/openhands",
+    "autogpt": "Agent/autogpt",
     "html_rag": "RAG/html_rag",
     "LightRAG": "RAG/LightRAG",
     "naiverag": "RAG/naiverag",
@@ -512,7 +513,7 @@ def main() -> int:
     parser.add_argument(
         "--system",
         required=True,
-        help="System folder name, e.g. html_rag, LightRAG, naiverag, vLLM, SGLang.",
+        help="System folder name, e.g. html_rag, LightRAG, naiverag, vLLM, SGLang, autogpt.",
     )
     parser.add_argument("--budget", type=int, default=3, help="Number of random samples to print.")
     args = parser.parse_args()

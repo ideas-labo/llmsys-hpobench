@@ -28,6 +28,7 @@ LLMSYS-HPOBench/
 |   `-- RAG/
 |-- scripts/                        # Data normalization and log-processing scripts
 |   |-- normalize_experiment_data.py
+|   |-- normalize_autogpt.py
 |   |-- normalize_sglang.py
 |   |-- normalize_vllm.py
 |   `-- slice_vllm_server_logs.py
@@ -41,6 +42,7 @@ LLMSYS-HPOBench/
 ```text
 experiment-data/
 |-- Agent/
+|   |-- autogpt/
 |   `-- openhands/
 |-- Engine/
 |   |-- SGLang/
@@ -58,6 +60,7 @@ Built-in system registrations currently include:
 | `vLLM` | `Engine/vLLM` |
 | `SGLang` | `Engine/SGLang` |
 | `openhands` | `Agent/openhands` |
+| `autogpt` | `Agent/autogpt` |
 | `html_rag` | `RAG/html_rag` |
 | `LightRAG` | `RAG/LightRAG` |
 | `naiverag` | `RAG/naiverag` |
@@ -71,9 +74,9 @@ Each fidelity directory contains one main CSV and optional artifact folders:
 `-- {fidelity_name}/
     |-- {fidelity_name}.csv
     |-- log_file/
-    |   `-- id1.log
+    |   `-- log-1.txt
     `-- hw_file/
-        `-- id1-hw.csv
+        `-- hw-1.txt
 ```
 
 Main CSVs use prefixed columns:
@@ -160,6 +163,14 @@ uv run python scripts/normalize_sglang.py --root experiment-data/Engine/SGLang -
 
 The SGLang normalizer reads raw JSON result files, writes fidelity directories named as `{request_rate}-{burstiness}-{max_concurrency}-{gsp_num_groups}-{gsp_system_prompt_len}`, and materializes one combined `log-file` per sample. The server section is timestamp-sliced to the matching client run window when server lines are available; otherwise it records a metadata-only server section.
 
+Normalize raw AutoGPT sampling data in place:
+
+```bash
+uv run python scripts/normalize_autogpt.py --root experiment-data/Agent/autogpt --remove-raw
+```
+
+The AutoGPT normalizer reads `large_scale/fidelities/*/*.json`, writes fidelity directories named as `{task_type}-req{requests_count}-{workload_category}`, and materializes both `hw_file/hw-{ID}.txt` and `log_file/log-{ID}.txt` when the raw sample contains hardware data or a run log.
+
 Slice normalized vLLM server logs so each row links only the server-side segment for that sampled client run:
 
 ```bash
@@ -200,7 +211,7 @@ The registered path must be relative to the benchmark data root.
 Run the current test suite:
 
 ```bash
-uv run python -m unittest tests.test_llmsys_hpobench tests.test_normalize_experiment_data tests.test_normalize_vllm tests.test_normalize_sglang tests.test_slice_vllm_server_logs -v
+uv run python -m unittest tests.test_llmsys_hpobench tests.test_normalize_experiment_data tests.test_normalize_vllm tests.test_normalize_sglang tests.test_normalize_autogpt tests.test_slice_vllm_server_logs -v
 ```
 
 Useful smoke tests:

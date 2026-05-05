@@ -201,6 +201,27 @@ The sample JSON also now persists `task_results` (per-task `output`, `error`, `m
 
 These factors describe the **workload itself** — task complexity, scale, and domain. They are independent of the AI system configuration.
 
+In the normalized LLMSYS-HPOBench data, these workload factors are encoded in the fidelity directory and CSV file name. They are not duplicated as `FIDELITY_*` columns.
+
+The filename order follows `experiment-data/tab-format.tex`:
+
+```text
+{task_type}-req{requests_count}-{workload_category}
+```
+
+Example:
+
+```text
+moderate-req1-code_generation/moderate-req1-code_generation.csv
+```
+
+Each row also links its hardware snapshot and run log through `hw-file` and `log-file`, with artifacts stored as:
+
+```text
+hw_file/hw-{ID}.txt
+log_file/log-{ID}.txt
+```
+
 | Factor | Source | `--inner-loop plan_b` (default) | `--inner-loop full` |
 |---|---|---|---|
 | **Task Type (Difficulty)** | `mf_sampler/config.py::TaskType` (4-level enum: simple / moderate / complex / multi_stage). Conceptually similar to agbenchmark's `DifficultyLevel` (`agbenchmark/utils/data_types.py:7-14`) but **with no direct source-code mapping**. | **[SIMPLE, COMPLEX]** — only the two extremes; MODERATE / MULTI_STAGE have low SNR vs their neighbours and were dropped to halve the inner loop. | **[SIMPLE, MODERATE, COMPLEX, MULTI_STAGE]** — full enum span (4 values). |

@@ -1,0 +1,302 @@
+{
+  "after": {
+    "cpu_percent": 0.3,
+    "gpu": [
+      {
+        "gpu_util_percent": 100,
+        "index": 0,
+        "mem_free_mb": 3720,
+        "mem_used_mb": 28887,
+        "mem_util_percent": 93,
+        "power_w": 587.7,
+        "temperature_c": 72
+      }
+    ],
+    "ram": {
+      "available_gb": 117.67,
+      "percent": 6.3,
+      "used_gb": 7.91
+    },
+    "timestamp": 1777504715.332296
+  },
+  "before": {
+    "cpu_percent": 0.0,
+    "gpu": [
+      {
+        "gpu_util_percent": 100,
+        "index": 0,
+        "mem_free_mb": 3720,
+        "mem_used_mb": 28887,
+        "mem_util_percent": 92,
+        "power_w": 588.2,
+        "temperature_c": 72
+      }
+    ],
+    "ram": {
+      "available_gb": 117.68,
+      "percent": 6.3,
+      "used_gb": 7.91
+    },
+    "timestamp": 1777504655.333661
+  },
+  "during": [
+    {
+      "cpu_percent": 6.2,
+      "gpu": [
+        {
+          "gpu_util_percent": 100,
+          "index": 0,
+          "mem_free_mb": 3720,
+          "mem_used_mb": 28887,
+          "mem_util_percent": 93,
+          "power_w": 584.9,
+          "temperature_c": 72
+        }
+      ],
+      "ram": {
+        "available_gb": 117.68,
+        "percent": 6.3,
+        "used_gb": 7.91
+      },
+      "timestamp": 1777504660.452165
+    },
+    {
+      "cpu_percent": 6.5,
+      "gpu": [
+        {
+          "gpu_util_percent": 100,
+          "index": 0,
+          "mem_free_mb": 3720,
+          "mem_used_mb": 28887,
+          "mem_util_percent": 92,
+          "power_w": 587.3,
+          "temperature_c": 72
+        }
+      ],
+      "ram": {
+        "available_gb": 117.68,
+        "percent": 6.3,
+        "used_gb": 7.91
+      },
+      "timestamp": 1777504665.5708177
+    },
+    {
+      "cpu_percent": 6.0,
+      "gpu": [
+        {
+          "gpu_util_percent": 95,
+          "index": 0,
+          "mem_free_mb": 3720,
+          "mem_used_mb": 28887,
+          "mem_util_percent": 87,
+          "power_w": 583.8,
+          "temperature_c": 72
+        }
+      ],
+      "ram": {
+        "available_gb": 117.67,
+        "percent": 6.3,
+        "used_gb": 7.91
+      },
+      "timestamp": 1777504670.688946
+    },
+    {
+      "cpu_percent": 5.9,
+      "gpu": [
+        {
+          "gpu_util_percent": 100,
+          "index": 0,
+          "mem_free_mb": 3720,
+          "mem_used_mb": 28887,
+          "mem_util_percent": 92,
+          "power_w": 587.1,
+          "temperature_c": 72
+        }
+      ],
+      "ram": {
+        "available_gb": 117.68,
+        "percent": 6.3,
+        "used_gb": 7.91
+      },
+      "timestamp": 1777504675.8057075
+    },
+    {
+      "cpu_percent": 6.2,
+      "gpu": [
+        {
+          "gpu_util_percent": 100,
+          "index": 0,
+          "mem_free_mb": 3720,
+          "mem_used_mb": 28887,
+          "mem_util_percent": 92,
+          "power_w": 587.2,
+          "temperature_c": 72
+        }
+      ],
+      "ram": {
+        "available_gb": 117.67,
+        "percent": 6.3,
+        "used_gb": 7.91
+      },
+      "timestamp": 1777504680.9230273
+    },
+    {
+      "cpu_percent": 6.5,
+      "gpu": [
+        {
+          "gpu_util_percent": 100,
+          "index": 0,
+          "mem_free_mb": 3720,
+          "mem_used_mb": 28887,
+          "mem_util_percent": 92,
+          "power_w": 512.4,
+          "temperature_c": 72
+        }
+      ],
+      "ram": {
+        "available_gb": 117.67,
+        "percent": 6.3,
+        "used_gb": 7.91
+      },
+      "timestamp": 1777504686.0399568
+    },
+    {
+      "cpu_percent": 6.5,
+      "gpu": [
+        {
+          "gpu_util_percent": 100,
+          "index": 0,
+          "mem_free_mb": 3720,
+          "mem_used_mb": 28887,
+          "mem_util_percent": 93,
+          "power_w": 588.5,
+          "temperature_c": 72
+        }
+      ],
+      "ram": {
+        "available_gb": 117.67,
+        "percent": 6.3,
+        "used_gb": 7.91
+      },
+      "timestamp": 1777504691.1565826
+    },
+    {
+      "cpu_percent": 6.2,
+      "gpu": [
+        {
+          "gpu_util_percent": 100,
+          "index": 0,
+          "mem_free_mb": 3720,
+          "mem_used_mb": 28887,
+          "mem_util_percent": 93,
+          "power_w": 585.2,
+          "temperature_c": 72
+        }
+      ],
+      "ram": {
+        "available_gb": 117.67,
+        "percent": 6.3,
+        "used_gb": 7.91
+      },
+      "timestamp": 1777504696.2739444
+    },
+    {
+      "cpu_percent": 6.5,
+      "gpu": [
+        {
+          "gpu_util_percent": 100,
+          "index": 0,
+          "mem_free_mb": 3720,
+          "mem_used_mb": 28887,
+          "mem_util_percent": 92,
+          "power_w": 584.6,
+          "temperature_c": 72
+        }
+      ],
+      "ram": {
+        "available_gb": 117.67,
+        "percent": 6.3,
+        "used_gb": 7.91
+      },
+      "timestamp": 1777504701.391358
+    },
+    {
+      "cpu_percent": 6.2,
+      "gpu": [
+        {
+          "gpu_util_percent": 100,
+          "index": 0,
+          "mem_free_mb": 3720,
+          "mem_used_mb": 28887,
+          "mem_util_percent": 92,
+          "power_w": 584.9,
+          "temperature_c": 72
+        }
+      ],
+      "ram": {
+        "available_gb": 117.67,
+        "percent": 6.3,
+        "used_gb": 7.91
+      },
+      "timestamp": 1777504706.5081499
+    },
+    {
+      "cpu_percent": 6.0,
+      "gpu": [
+        {
+          "gpu_util_percent": 100,
+          "index": 0,
+          "mem_free_mb": 3720,
+          "mem_used_mb": 28887,
+          "mem_util_percent": 92,
+          "power_w": 586.2,
+          "temperature_c": 72
+        }
+      ],
+      "ram": {
+        "available_gb": 117.67,
+        "percent": 6.3,
+        "used_gb": 7.91
+      },
+      "timestamp": 1777504711.6243768
+    }
+  ],
+  "summary": {
+    "cpu_percent": {
+      "avg": 6.2,
+      "max": 6.5,
+      "min": 5.9
+    },
+    "gpu": [
+      {
+        "gpu_util_percent": {
+          "avg": 99.5,
+          "max": 100,
+          "min": 95
+        },
+        "index": 0,
+        "mem_used_mb": {
+          "avg": 28887,
+          "max": 28887,
+          "min": 28887
+        },
+        "power_w": {
+          "avg": 579.3,
+          "max": 588.5,
+          "min": 512.4
+        },
+        "temperature_c": {
+          "avg": 72.0,
+          "max": 72,
+          "min": 72
+        }
+      }
+    ],
+    "num_samples": 11,
+    "ram_percent": {
+      "avg": 6.3,
+      "max": 6.3,
+      "min": 6.3
+    }
+  }
+}

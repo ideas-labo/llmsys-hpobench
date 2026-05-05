@@ -21,8 +21,8 @@ class BenchmarkTests(unittest.TestCase):
                 / "moderate-r1-memory_retrieval.csv",
                 """
 ID,cfg-max_num_seqs,cfg-enable_prefix_caching,cfg-ai-temperature,obj-throughput+,obj-TTFT-,cost-gpu_cache_usage,hw-file,log-file
-1,1024,True,0.2,145.2,0.62,84.7,hw_file/id1-hw.csv,log_file/id1.log
-2,2048,False,0.7,167.9,0.71,90.8,hw_file/id2-hw.csv,log_file/id2.log
+1,1024,True,0.2,145.2,0.62,84.7,hw_file/hw-1.txt,log_file/log-1.txt
+2,2048,False,0.7,167.9,0.71,90.8,hw_file/hw-2.txt,log_file/log-2.txt
 """,
             )
             write_csv(
@@ -30,7 +30,7 @@ ID,cfg-max_num_seqs,cfg-enable_prefix_caching,cfg-ai-temperature,obj-throughput+
                 / "target_system"
                 / "moderate-r1-memory_retrieval"
                 / "hw_file"
-                / "id2-hw.csv",
+                / "hw-2.txt",
                 """
 timestamp,gpu_util
 1,80
@@ -61,14 +61,14 @@ timestamp,gpu_util
             self.assertEqual(measurement["perf"]["throughput+"], 167.9)
             self.assertEqual(measurement["perf"]["TTFT-"], 0.71)
             self.assertEqual(measurement["cost"]["gpu_cache_usage"], 90.8)
-            self.assertEqual(measurement["hardware"]["file"], "hw_file/id2-hw.csv")
-            self.assertEqual(measurement["log"]["file"], "log_file/id2.log")
+            self.assertEqual(measurement["hardware"]["file"], "hw_file/hw-2.txt")
+            self.assertEqual(measurement["log"]["file"], "log_file/log-2.txt")
             self.assertEqual(
                 measurement.select(perf=["TTFT-"], cost=["gpu_cache_usage"], log=["file"]),
                 {
                     "perf": {"TTFT-": 0.71},
                     "cost": {"gpu_cache_usage": 90.8},
-                    "log": {"file": "log_file/id2.log"},
+                    "log": {"file": "log_file/log-2.txt"},
                 },
             )
             self.assertEqual(Z.names, ["moderate-r1-memory_retrieval"])
@@ -129,7 +129,7 @@ ID,cfg-wide,cfg-narrow,obj-score+
                 tmp_path / "experiment-data" / "Engine" / "vLLM" / "f1" / "f1.csv",
                 """
 ID,cfg-a,obj-score+,log-file,hw-file
-1,1,0.5,log_file/id1.log,
+1,1,0.5,log_file/log-1.txt,
 """,
             )
 
@@ -138,7 +138,7 @@ ID,cfg-a,obj-score+,log-file,hw-file
             self.assertEqual(benchmark.system_dir, (tmp_path / "experiment-data" / "Engine" / "vLLM").resolve())
             measurement = benchmark.evaluate({"a": 1}, "f1")
             self.assertEqual(measurement["perf"]["score+"], 0.5)
-            self.assertEqual(measurement["log"]["file"], "log_file/id1.log")
+            self.assertEqual(measurement["log"]["file"], "log_file/log-1.txt")
             self.assertEqual(measurement["hardware"]["file"], None)
 
     def test_sglang_raw_multi_fidelity_log_csv_is_not_loaded_as_benchmark_records(self):
@@ -166,6 +166,9 @@ tp_size,exit_code
 
     def test_sglang_is_registered_under_engine(self):
         self.assertEqual(registered_systems()["SGLang"], "Engine/SGLang")
+
+    def test_autogpt_is_registered_under_agent(self):
+        self.assertEqual(registered_systems()["autogpt"], "Agent/autogpt")
 
     def test_custom_system_registration_extends_resolution(self):
         with tempfile.TemporaryDirectory() as temp_dir:

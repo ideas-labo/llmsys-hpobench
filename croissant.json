@@ -1,0 +1,252 @@
+{
+  "@context": {
+    "@language": "en",
+    "@vocab": "https://schema.org/",
+    "citeAs": "cr:citeAs",
+    "column": "cr:column",
+    "conformsTo": "dct:conformsTo",
+    "cr": "http://mlcommons.org/croissant/",
+    "rai": "http://mlcommons.org/croissant/RAI/",
+    "data": {
+      "@id": "cr:data",
+      "@type": "@json"
+    },
+    "dataType": {
+      "@id": "cr:dataType",
+      "@type": "@vocab"
+    },
+    "dct": "http://purl.org/dc/terms/",
+    "equivalentProperty": "cr:equivalentProperty",
+    "examples": {
+      "@id": "cr:examples",
+      "@type": "@json"
+    },
+    "extract": "cr:extract",
+    "field": "cr:field",
+    "fileProperty": "cr:fileProperty",
+    "fileObject": "cr:fileObject",
+    "fileSet": "cr:fileSet",
+    "format": "cr:format",
+    "includes": "cr:includes",
+    "isLiveDataset": "cr:isLiveDataset",
+    "jsonPath": "cr:jsonPath",
+    "key": "cr:key",
+    "md5": "cr:md5",
+    "parentField": "cr:parentField",
+    "path": "cr:path",
+    "recordSet": "cr:recordSet",
+    "references": "cr:references",
+    "regex": "cr:regex",
+    "repeated": "cr:repeated",
+    "replace": "cr:replace",
+    "samplingRate": "cr:samplingRate",
+    "sc": "https://schema.org/",
+    "separator": "cr:separator",
+    "source": "cr:source",
+    "subField": "cr:subField",
+    "transform": "cr:transform"
+  },
+  "@type": "sc:Dataset",
+  "name": "LLMSYS-HPOBench",
+  "description": "LLMSYS-HPOBench is an offline benchmark dataset for hyperparameter optimization of LLM systems, covering inference engines, RAG pipelines, and agent frameworks. Each row links normalized objective/cost values to the corresponding log and hardware artifacts when available.",
+  "url": "https://anonymous.4open.science/r/llmsys-hpobench-CD2B",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "version": "1.0.0",
+  "datePublished": "2026-05-05",
+  "citeAs": "TODO: add the NeurIPS 2026 dataset paper citation or DOI before submission.",
+  "creator": [
+    {
+      "@type": "Person",
+      "name": "LLMSYS-HPOBench Authors"
+    }
+  ],
+  "keywords": [
+    "LLM systems",
+    "hyperparameter optimization",
+    "benchmark",
+    "inference engine",
+    "RAG",
+    "agents"
+  ],
+  "conformsTo": "http://mlcommons.org/croissant/1.0",
+  "dct:conformsTo": [
+    "http://mlcommons.org/croissant/1.0",
+    "http://mlcommons.org/croissant/RAI/1.0"
+  ],
+  "rai:dataUseCases": [
+    "Offline benchmarking of LLM-system hyperparameter optimization methods.",
+    "Analysis of trade-offs among system configuration, AI parameters, performance, cost, logs, and hardware traces."
+  ],
+  "rai:dataLimitations": "The dataset contains observed benchmark samples rather than a complete continuous configuration space. Missing config-fidelity combinations should be treated as unobserved, not as failed runs unless explicitly encoded in the normalized CSV.",
+  "rai:personalSensitiveInformation": "The normalized benchmark data is intended to contain system metrics, synthetic or benchmark task outputs, logs, and hardware measurements. Contributors should review logs before publication to remove any accidental secrets, credentials, or personal data.",
+  "rai:dataCollection": "Samples were collected from local benchmark workflows and normalized into a common CSV schema with per-row log and hardware artifact references.",
+  "rai:dataPreprocessing": "Raw outputs were cleaned into prefixed columns: cfg-* for non-AI parameters, cfg-ai-* for AI parameters, obj-* for objective metrics, cost-* for cost metrics, hw-file for hardware artifacts, and log-file for logs.",
+  "rai:maintenancePlan": "Future systems can be added by contributing normalized fidelity directories, system manuals, and tests following CONTRIBUTING.md.",
+  "rai:dataSocialImpact": "The dataset is designed to support reproducible evaluation of LLM-system optimization methods and to make cost/performance trade-offs more transparent.",
+  "distribution": [
+    {
+      "@type": "cr:FileObject",
+      "@id": "croissant_records_csv",
+      "name": "croissant_records.csv",
+      "description": "Manifest with one row per normalized benchmark sample.",
+      "contentUrl": "metadata/croissant_records.csv",
+      "encodingFormat": "text/csv",
+      "sha256": "61da5d6547a1b8d2ca281400ccdd651a7784c9a3805372f6c913d272477e38ba"
+    },
+    {
+      "@type": "cr:FileSet",
+      "@id": "normalized_benchmark_csv_files",
+      "name": "Normalized benchmark CSV files",
+      "description": "One main CSV per system fidelity directory.",
+      "contentUrl": "experiment-data",
+      "encodingFormat": "text/csv",
+      "includes": "**/*.csv",
+      "excludes": [
+        "**/log_file/**",
+        "**/hw_file/**",
+        "**/raw_metadata/**"
+      ]
+    },
+    {
+      "@type": "cr:FileSet",
+      "@id": "log_artifacts",
+      "name": "Per-sample log artifacts",
+      "description": "Per-row logs referenced by the log-file column.",
+      "contentUrl": "experiment-data",
+      "encodingFormat": "text/plain",
+      "includes": "**/log_file/log-*.txt"
+    },
+    {
+      "@type": "cr:FileSet",
+      "@id": "hardware_artifacts",
+      "name": "Per-sample hardware artifacts",
+      "description": "Per-row hardware traces referenced by the hw-file column.",
+      "contentUrl": "experiment-data",
+      "encodingFormat": "text/plain",
+      "includes": "**/hw_file/hw-*.txt"
+    }
+  ],
+  "recordSet": [
+    {
+      "@type": "cr:RecordSet",
+      "@id": "sample_manifest",
+      "name": "sample_manifest",
+      "description": "Manifest of 364450 normalized benchmark samples across 7 systems and 626 system-fidelity directories.",
+      "key": [
+        {
+          "@id": "sample_manifest/row_key"
+        }
+      ],
+      "field": [
+        {
+          "@type": "cr:Field",
+          "@id": "sample_manifest/row_key",
+          "name": "row_key",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": "croissant_records_csv",
+            "extract": {
+              "column": "row_key"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "sample_manifest/system",
+          "name": "system",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": "croissant_records_csv",
+            "extract": {
+              "column": "system"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "sample_manifest/category",
+          "name": "category",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": "croissant_records_csv",
+            "extract": {
+              "column": "category"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "sample_manifest/fidelity",
+          "name": "fidelity",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": "croissant_records_csv",
+            "extract": {
+              "column": "fidelity"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "sample_manifest/record_id",
+          "name": "record_id",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": "croissant_records_csv",
+            "extract": {
+              "column": "record_id"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "sample_manifest/config_id",
+          "name": "config_id",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": "croissant_records_csv",
+            "extract": {
+              "column": "config_id"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "sample_manifest/csv_file",
+          "name": "csv_file",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": "croissant_records_csv",
+            "extract": {
+              "column": "csv_file"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "sample_manifest/hw_file",
+          "name": "hw_file",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": "croissant_records_csv",
+            "extract": {
+              "column": "hw_file"
+            }
+          }
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "sample_manifest/log_file",
+          "name": "log_file",
+          "dataType": "sc:Text",
+          "source": {
+            "fileObject": "croissant_records_csv",
+            "extract": {
+              "column": "log_file"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -21,8 +21,8 @@ Columns should be organized in this order when possible: `ID`, hyperparameters, 
 | Non-AI Hyperparameters | `cfg-{parameter_name}` | Non-AI configuration parameters, such as system, resource, concurrency, cache, database, or runtime parameters. | `cfg-max_num_seqs` |
 | Objective Metrics | `obj-{metric_name}{+/-}` | Optimization target metrics. Use `+` for metrics to maximize and `-` for metrics to minimize. | `obj-throughput+`, `obj-TTFT-` |
 | Cost Metrics | `cost-{metric_name}` | Cost or resource consumption metrics. | `cost-gpu_cache_usage`, `cost-duration` |
-| Hardware File Reference | `hw-file` | File name or file ID for a hardware monitoring artifact associated with the row. Leave blank if no separate hardware artifact exists. | `id1-hw` |
-| Log File Reference | `log-file` | File name or file ID for the combined log artifact associated with the row. Use titled sections inside the file to distinguish client and server logs. | `id1.log` |
+| Hardware File Reference | `hw-file` | File name or file ID for a hardware monitoring artifact associated with the row. Leave blank if no separate hardware artifact exists. | `hw_file/hw-1.txt` |
+| Log File Reference | `log-file` | File name or file ID for the combined log artifact associated with the row. Use titled sections inside the file to distinguish client and server logs. | `log_file/log-1.txt` |
 
 ### AI vs. Non-AI Hyperparameters
 
@@ -51,8 +51,8 @@ If a parameter is ambiguous, classify it by whether it directly changes model, r
 
 ```csv
 ID,cfg-max_num_seqs,cfg-ai-enable_prefix_caching,obj-throughput+,obj-TTFT-,cost-gpu_cache_usage,cost-duration,hw-file,log-file
-1,1024,True,145.2,0.62,84.7%,287.4,id1-hw,id1.log
-2,1024,False,151.6,0.58,81.3%,273.1,id2-hw,id2.log
+1,1024,True,145.2,0.62,84.7%,287.4,hw_file/hw-1.txt,log_file/log-1.txt
+2,1024,False,151.6,0.58,81.3%,273.1,hw_file/hw-2.txt,log_file/log-2.txt
 ```
 
 Notes:
@@ -95,18 +95,18 @@ Each system should use the following layout:
 `-- {fidelity_name}/
     |-- {fidelity_name}.csv
     |-- log_file/
-    |   |-- id1.log
-    |   |-- id2.log
-    |   `-- id3.log
+    |   |-- log-1.txt
+    |   |-- log-2.txt
+    |   `-- log-3.txt
     `-- hw_file/
-        |-- id1-hw
-        |-- id2-hw
-        `-- id3-hw
+        |-- hw-1.txt
+        |-- hw-2.txt
+        `-- hw-3.txt
 ```
 
 Rules:
 
-- `{system_name}` is the system or benchmark name, for example `vLLM`, `SGLang`, `LightRAG`, or `openhands`.
+- `{system_name}` is the system or benchmark name, for example `vLLM`, `SGLang`, `AutoGPT`, `LightRAG`, or `openhands`.
 - `{fidelity_name}` must match the CSV file stem, for example `moderate-r1-memory_retrieval`.
 - `log_file/` stores combined per-record log files for records under the current fidelity.
 - `hw_file/` stores hardware monitoring files for records under the current fidelity.
@@ -117,23 +117,16 @@ Rules:
 Hardware and log artifacts only need to be stored as unique file names or file IDs. The recommended naming pattern is:
 
 ```text
-id{ID}-hw
-id{ID}.log
+hw_file/hw-{ID}.txt
+log_file/log-{ID}.txt
 ```
 
 Examples:
 
-- For `ID=1`, the hardware file is `hw_file/id1-hw`.
-- For `ID=1`, the combined log file is `log_file/id1.log`.
+- For `ID=1`, the hardware file is `hw_file/hw-1.txt`.
+- For `ID=1`, the combined log file is `log_file/log-1.txt`.
 
-If original extensions should be preserved, the following form is also acceptable:
-
-```text
-id1-hw.csv
-id1.log
-```
-
-However, the value stored in the CSV cell must exactly match the actual file name.
+The value stored in the CSV cell must exactly match the actual file path relative to the fidelity directory.
 
 Combined log files should use titled sections:
 
@@ -217,6 +210,27 @@ The workflow:
 - Slices the server section to the client `Started at` / `Completed at` window with a small configurable padding. If the server log has no lines in that window, the server section remains metadata-only with `selected_lines: 0`.
 - Leaves `hw-file` empty because the current raw SGLang data has no separate hardware metric artifacts.
 
+## AutoGPT Normalization Workflow
+
+Raw AutoGPT sampling data can be normalized in place with:
+
+```bash
+uv run python scripts/normalize_autogpt.py --root experiment-data/Agent/autogpt --remove-raw
+```
+
+The workflow:
+
+- Reads raw sample JSON files from `large_scale/fidelities/{task_type}_r{requests_count}_{workload_category}/`.
+- Renames fidelity directories and CSVs as `{task_type}-req{requests_count}-{workload_category}`, matching the AutoGPT factor order in `experiment-data/tab-format.tex`.
+- Converts agent/workload orchestration parameters to `cfg-*` columns.
+- Converts LLM and agent behavior parameters such as `model_name`, `temperature`, `max_tokens`, and `use_functions_api` to `cfg-ai-*` columns.
+- Converts success, correctness, adherence, and throughput metrics to `obj-*+` columns.
+- Converts failure, timeout, and latency metrics to `obj-*-` columns.
+- Converts duration, cycle count, token usage, and estimated cost metrics to `cost-*` columns.
+- Writes raw hardware snapshots to `hw_file/hw-{ID}.txt` and stores that path in `hw-file`.
+- Writes raw sample logs and server-log-offset metadata to `log_file/log-{ID}.txt` and stores that path in `log-file`.
+- Does not duplicate `task_type`, `requests_count`, or `workload_category` as `FIDELITY_*` CSV columns.
+
 ## Benchmark Data Root
 
 The benchmark wrapper expects organized experiment data under `experiment-data/`:
@@ -224,6 +238,7 @@ The benchmark wrapper expects organized experiment data under `experiment-data/`
 ```text
 experiment-data/
 |-- Agent/
+|   |-- autogpt/
 |   `-- openhands/
 |-- Engine/
 |   |-- SGLang/
@@ -241,6 +256,7 @@ Built-in system registrations map system names to these paths:
 | `vLLM` | `Engine/vLLM` |
 | `SGLang` | `Engine/SGLang` |
 | `openhands` | `Agent/openhands` |
+| `autogpt` | `Agent/autogpt` |
 | `html_rag` | `RAG/html_rag` |
 | `LightRAG` | `RAG/LightRAG` |
 | `naiverag` | `RAG/naiverag` |
