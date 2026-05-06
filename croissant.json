@@ -89,14 +89,17 @@
     "Hardware- and workload-specific behavior may bias objective and cost metrics toward the environments used during collection."
   ],
   "rai:personalSensitiveInformation": "The normalized benchmark data is intended to contain system metrics, synthetic or benchmark task outputs, logs, and hardware measurements. Contributors should review logs before publication to remove any accidental secrets, credentials, or personal data.",
+  "rai:hasSyntheticData": true,
+  "rai:containsSyntheticData": true,
   "rai:sourceDatasets": [
-    "autogpt benchmark samples: experiment-data/Agent/autogpt",
-    "openhands benchmark samples: experiment-data/Agent/openhands",
-    "SGLang benchmark samples: experiment-data/Engine/SGLang",
-    "vLLM benchmark samples: experiment-data/Engine/vLLM",
-    "LightRAG benchmark samples: experiment-data/RAG/LightRAG",
-    "html_rag benchmark samples: experiment-data/RAG/html_rag",
-    "naiverag benchmark samples: experiment-data/RAG/naiverag"
+    "ShareGPT Vicuna unfiltered conversation dataset: https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered",
+    "HotpotQA question answering dataset: https://hotpotqa.github.io/",
+    "BioASQ biomedical question answering benchmark: https://bioasq.org/",
+    "UltraDomain Agriculture and Biography source corpora used by LightRAG/NaiveRAG workloads: https://huggingface.co/datasets/TommyChien/UltraDomain",
+    "HtmlRAG default HTML task source: https://arxiv.org/abs/2411.02959",
+    "AGBenchmark and AutoGPT task source: https://github.com/Significant-Gravitas/AutoGPT",
+    "ProofWriter logical reasoning dataset: https://huggingface.co/datasets/tasksource/proofwriter",
+    "SGLang generated shared-prefix workload recipe and seeds: https://zenodo.org/records/20048594"
   ],
   "rai:provenanceActivities": [
     {
@@ -104,6 +107,12 @@
       "@id": "activity_raw_collection",
       "name": "Raw benchmark collection",
       "description": "Run each system benchmark workflow and collect raw objective metrics, cost metrics, logs, and hardware traces."
+    },
+    {
+      "@type": "prov:Activity",
+      "@id": "activity_synthetic_shared_prefix_generation",
+      "name": "Synthetic shared-prefix workload generation",
+      "description": "For a subset of SGLang measurements, the benchmark generated synthetic shared-prefix workloads with long system prompts and short questions controlled by gsp_num_groups, gsp_prompts_per_group, gsp_system_prompt_len, gsp_question_len, and gsp_output_len. The synthetic prompt text is not redistributed in LLMSYS-HPOBench; the released data contains the derived performance samples, logs, and diagnostic failure artifacts."
     },
     {
       "@type": "prov:Activity",
@@ -124,12 +133,34 @@
       "description": "Generate croissant.json and metadata/croissant_records.csv from the normalized experiment-data directory."
     }
   ],
+  "prov:wasDerivedFrom": [
+    "https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered",
+    "https://hotpotqa.github.io/",
+    "https://bioasq.org/",
+    "https://huggingface.co/datasets/TommyChien/UltraDomain",
+    "https://arxiv.org/abs/2411.02959",
+    "https://github.com/Significant-Gravitas/AutoGPT",
+    "https://huggingface.co/datasets/tasksource/proofwriter",
+    "https://zenodo.org/records/20048594"
+  ],
   "prov:wasGeneratedBy": [
+    {
+      "@id": "activity_raw_collection"
+    },
+    {
+      "@id": "activity_synthetic_shared_prefix_generation"
+    },
+    {
+      "@id": "activity_normalization"
+    },
+    {
+      "@id": "activity_artifact_linking"
+    },
     {
       "@id": "activity_croissant_generation"
     }
   ],
-  "rai:dataCollection": "Samples were collected from local benchmark workflows and normalized into a common CSV schema with per-row log and hardware artifact references.",
+  "rai:dataCollection": "Samples were collected from local benchmark workflows and normalized into a common CSV schema with per-row log and hardware artifact references. The released dataset does not redistribute SGLang generated shared-prefix prompt text, but some SGLang measurements were produced from that synthetic workload during collection.",
   "rai:dataPreprocessing": "Raw outputs were cleaned into prefixed columns: cfg-* for non-AI parameters, cfg-ai-* for AI parameters, obj-* for objective metrics, cost-* for cost metrics, hw-file for hardware artifacts, and log-file for logs.",
   "rai:maintenancePlan": "Future systems can be added by contributing normalized fidelity directories, system manuals, and tests following CONTRIBUTING.md.",
   "rai:dataSocialImpact": "The dataset is designed to support reproducible evaluation of LLM-system optimization methods and to make cost/performance trade-offs more transparent.",

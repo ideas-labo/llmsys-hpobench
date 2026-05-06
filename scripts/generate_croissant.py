@@ -62,7 +62,6 @@ def generate_croissant(
         output=output,
         record_count=len(records),
         systems=sorted({record["system"] for record in records}),
-        source_datasets=sorted({(record["category"], record["system"]) for record in records}),
         fidelity_count=len({(record["system"], record["fidelity"]) for record in records}),
     )
 
@@ -156,7 +155,6 @@ def _build_croissant_metadata(
     output: Path,
     record_count: int,
     systems: list[str],
-    source_datasets: list[tuple[str, str]],
     fidelity_count: int,
 ) -> dict[str, Any]:
     records_ref = _relative_path(records_output, output.parent)
@@ -235,12 +233,18 @@ def _build_croissant_metadata(
             "Contributors should review logs before publication to remove any "
             "accidental secrets, credentials, or personal data."
         ),
-        "rai:sourceDatasets": _source_dataset_metadata(source_datasets, data_root_ref),
+        "rai:hasSyntheticData": True,
+        "rai:containsSyntheticData": True,
+        "rai:sourceDatasets": _source_dataset_metadata(),
         "rai:provenanceActivities": _provenance_activities(),
-        "prov:wasGeneratedBy": [{"@id": "activity_croissant_generation"}],
+        "prov:wasDerivedFrom": _source_dataset_urls(),
+        "prov:wasGeneratedBy": _provenance_activity_refs(),
         "rai:dataCollection": (
             "Samples were collected from local benchmark workflows and normalized "
-            "into a common CSV schema with per-row log and hardware artifact references."
+            "into a common CSV schema with per-row log and hardware artifact references. "
+            "The released dataset does not redistribute SGLang generated shared-prefix "
+            "prompt text, but some SGLang measurements were produced from that synthetic "
+            "workload during collection."
         ),
         "rai:dataPreprocessing": (
             "Raw outputs were cleaned into prefixed columns: cfg-* for non-AI parameters, "
@@ -310,11 +314,34 @@ def _build_croissant_metadata(
     }
 
 
-def _source_dataset_metadata(source_datasets: list[tuple[str, str]], data_root_ref: str) -> list[str]:
-    datasets = []
-    for category, system in source_datasets:
-        datasets.append(f"{system} benchmark samples: {data_root_ref}/{category}/{system}")
-    return datasets
+def _source_dataset_metadata() -> list[str]:
+    return [
+        "ShareGPT Vicuna unfiltered conversation dataset: https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered",
+        "HotpotQA question answering dataset: https://hotpotqa.github.io/",
+        "BioASQ biomedical question answering benchmark: https://bioasq.org/",
+        "UltraDomain Agriculture and Biography source corpora used by LightRAG/NaiveRAG workloads: https://huggingface.co/datasets/TommyChien/UltraDomain",
+        "HtmlRAG default HTML task source: https://arxiv.org/abs/2411.02959",
+        "AGBenchmark and AutoGPT task source: https://github.com/Significant-Gravitas/AutoGPT",
+        "ProofWriter logical reasoning dataset: https://huggingface.co/datasets/tasksource/proofwriter",
+        "SGLang generated shared-prefix workload recipe and seeds: https://zenodo.org/records/20048594",
+    ]
+
+
+def _source_dataset_urls() -> list[str]:
+    return [
+        "https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered",
+        "https://hotpotqa.github.io/",
+        "https://bioasq.org/",
+        "https://huggingface.co/datasets/TommyChien/UltraDomain",
+        "https://arxiv.org/abs/2411.02959",
+        "https://github.com/Significant-Gravitas/AutoGPT",
+        "https://huggingface.co/datasets/tasksource/proofwriter",
+        "https://zenodo.org/records/20048594",
+    ]
+
+
+def _provenance_activity_refs() -> list[dict[str, str]]:
+    return [{"@id": activity["@id"]} for activity in _provenance_activities()]
 
 
 def _provenance_activities() -> list[dict[str, str]]:
@@ -326,6 +353,20 @@ def _provenance_activities() -> list[dict[str, str]]:
             "description": (
                 "Run each system benchmark workflow and collect raw objective metrics, "
                 "cost metrics, logs, and hardware traces."
+            ),
+        },
+        {
+            "@type": "prov:Activity",
+            "@id": "activity_synthetic_shared_prefix_generation",
+            "name": "Synthetic shared-prefix workload generation",
+            "description": (
+                "For a subset of SGLang measurements, the benchmark generated synthetic "
+                "shared-prefix workloads with long system prompts and short questions "
+                "controlled by gsp_num_groups, gsp_prompts_per_group, "
+                "gsp_system_prompt_len, gsp_question_len, and gsp_output_len. The "
+                "synthetic prompt text is not redistributed in LLMSYS-HPOBench; the "
+                "released data contains the derived performance samples, logs, and "
+                "diagnostic failure artifacts."
             ),
         },
         {

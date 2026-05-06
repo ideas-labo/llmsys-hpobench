@@ -70,9 +70,31 @@ ID,cfg-config_id,obj-score+,hw-file,log-file
             self.assertIn("rai:dataLimitations", metadata)
             self.assertIsInstance(metadata["rai:dataLimitations"], list)
             self.assertIn("rai:dataBiases", metadata)
+            self.assertIn("rai:personalSensitiveInformation", metadata)
+            self.assertIn("rai:dataSocialImpact", metadata)
+            self.assertIs(metadata["rai:hasSyntheticData"], True)
             self.assertIn("rai:sourceDatasets", metadata)
-            self.assertEqual(metadata["rai:sourceDatasets"][0], "vLLM benchmark samples: experiment-data/Engine/vLLM")
+            self.assertIn(
+                "ShareGPT Vicuna unfiltered conversation dataset: https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered",
+                metadata["rai:sourceDatasets"],
+            )
+            self.assertIn(
+                "SGLang generated shared-prefix workload recipe and seeds: https://zenodo.org/records/20048594",
+                metadata["rai:sourceDatasets"],
+            )
             self.assertIn("rai:provenanceActivities", metadata)
+            provenance_names = {activity["name"] for activity in metadata["rai:provenanceActivities"]}
+            self.assertIn("Synthetic shared-prefix workload generation", provenance_names)
+            self.assertIn("prov:wasDerivedFrom", metadata)
+            self.assertIn(
+                "https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered",
+                metadata["prov:wasDerivedFrom"],
+            )
+            self.assertIn("prov:wasGeneratedBy", metadata)
+            generated_by_ids = {activity["@id"] for activity in metadata["prov:wasGeneratedBy"]}
+            self.assertIn("activity_raw_collection", generated_by_ids)
+            self.assertIn("activity_synthetic_shared_prefix_generation", generated_by_ids)
+            self.assertIn("activity_croissant_generation", generated_by_ids)
             self.assertIn("prov", metadata["@context"])
             self.assertIn("distribution", metadata)
             self.assertIn("recordSet", metadata)
