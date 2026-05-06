@@ -33,7 +33,7 @@ def generate_croissant(
     output_path: str | Path = "croissant.json",
     records_output_path: str | Path = "metadata/croissant_records.csv",
     dataset_name: str = "LLMSYS-HPOBench",
-    dataset_url: str = "https://github.com/TODO/LLMSYS-HPOBench",
+    dataset_url: str = "https://anonymous.4open.science/r/llmsys-hpobench-CD2B",
     license_url: str = "https://creativecommons.org/licenses/by/4.0/",
     creators: Iterable[str] = ("LLMSYS-HPOBench Authors",),
 ) -> dict[str, int]:
@@ -62,6 +62,7 @@ def generate_croissant(
         output=output,
         record_count=len(records),
         systems=sorted({record["system"] for record in records}),
+        source_datasets=sorted({(record["category"], record["system"]) for record in records}),
         fidelity_count=len({(record["system"], record["fidelity"]) for record in records}),
     )
 
@@ -155,6 +156,7 @@ def _build_croissant_metadata(
     output: Path,
     record_count: int,
     systems: list[str],
+    source_datasets: list[tuple[str, str]],
     fidelity_count: int,
 ) -> dict[str, Any]:
     records_ref = _relative_path(records_output, output.parent)
@@ -175,7 +177,11 @@ def _build_croissant_metadata(
         "license": license_url,
         "version": "1.0.0",
         "datePublished": datetime.now(timezone.utc).date().isoformat(),
-        "citeAs": "TODO: add the NeurIPS 2026 dataset paper citation or DOI before submission.",
+        "citeAs": (
+            "Anonymous. LLMSYS-HPOBench: Hyperparameter Optimization Benchmark Suite "
+            "for Real-World LLM Systems. Submitted to the NeurIPS 2026 Datasets and "
+            "Benchmarks Track."
+        ),
         "creator": [{"@type": "Person", "name": creator} for creator in creators],
         "keywords": [
             "LLM systems",
@@ -191,18 +197,47 @@ def _build_croissant_metadata(
             "Offline benchmarking of LLM-system hyperparameter optimization methods.",
             "Analysis of trade-offs among system configuration, AI parameters, performance, cost, logs, and hardware traces.",
         ],
-        "rai:dataLimitations": (
-            "The dataset contains observed benchmark samples rather than a complete "
-            "continuous configuration space. Missing config-fidelity combinations "
-            "should be treated as unobserved, not as failed runs unless explicitly "
-            "encoded in the normalized CSV."
-        ),
+        "rai:dataLimitations": [
+            (
+                "The dataset contains observed benchmark samples rather than a complete "
+                "continuous configuration space. Missing config-fidelity combinations "
+                "should be treated as unobserved, not as failed runs unless explicitly "
+                "encoded in the normalized CSV."
+            ),
+            (
+                "Benchmark results depend on the recorded software versions, hardware, "
+                "workloads, and runtime conditions of each source system and should not "
+                "be interpreted as universal performance claims for all deployments."
+            ),
+            (
+                "Log and hardware artifacts are linked when available, but some systems "
+                "or historical runs may have incomplete artifact coverage."
+            ),
+        ],
+        "rai:dataBiases": [
+            (
+                "Coverage is biased toward the LLM systems, fidelity factors, tasks, and "
+                "configuration regions sampled by the project workflows."
+            ),
+            (
+                "Systems with more completed samples contribute more rows to aggregate "
+                "analyses, so cross-system comparisons should account for uneven sample "
+                "counts and fidelity coverage."
+            ),
+            (
+                "Hardware- and workload-specific behavior may bias objective and cost "
+                "metrics toward the environments used during collection."
+            ),
+        ],
         "rai:personalSensitiveInformation": (
             "The normalized benchmark data is intended to contain system metrics, "
             "synthetic or benchmark task outputs, logs, and hardware measurements. "
             "Contributors should review logs before publication to remove any "
             "accidental secrets, credentials, or personal data."
         ),
+        "rai:sourceDatasets": _source_dataset_metadata(source_datasets, data_root_ref),
+        "rai:provenanceActivities": _provenance_activities(),
+        "prov:wasGeneratedBy": [{"@id": "activity_croissant_generation"}],
         "rai:dataCollection": (
             "Samples were collected from local benchmark workflows and normalized "
             "into a common CSV schema with per-row log and hardware artifact references."
@@ -275,6 +310,54 @@ def _build_croissant_metadata(
     }
 
 
+def _source_dataset_metadata(source_datasets: list[tuple[str, str]], data_root_ref: str) -> list[str]:
+    datasets = []
+    for category, system in source_datasets:
+        datasets.append(f"{system} benchmark samples: {data_root_ref}/{category}/{system}")
+    return datasets
+
+
+def _provenance_activities() -> list[dict[str, str]]:
+    return [
+        {
+            "@type": "prov:Activity",
+            "@id": "activity_raw_collection",
+            "name": "Raw benchmark collection",
+            "description": (
+                "Run each system benchmark workflow and collect raw objective metrics, "
+                "cost metrics, logs, and hardware traces."
+            ),
+        },
+        {
+            "@type": "prov:Activity",
+            "@id": "activity_normalization",
+            "name": "Data normalization",
+            "description": (
+                "Convert raw outputs into the shared LLMSYS-HPOBench CSV layout with "
+                "cfg-, cfg-ai-, obj-, cost-, hw-file, and log-file columns."
+            ),
+        },
+        {
+            "@type": "prov:Activity",
+            "@id": "activity_artifact_linking",
+            "name": "Artifact linking",
+            "description": (
+                "Canonicalize per-sample log_file/log-ID.txt and hw_file/hw-ID.txt "
+                "paths and link them from the normalized CSV rows."
+            ),
+        },
+        {
+            "@type": "prov:Activity",
+            "@id": "activity_croissant_generation",
+            "name": "Croissant metadata generation",
+            "description": (
+                "Generate croissant.json and metadata/croissant_records.csv from the "
+                "normalized experiment-data directory."
+            ),
+        },
+    ]
+
+
 def _manifest_fields(file_object_id: str) -> list[dict[str, Any]]:
     fields = []
     for column in MANIFEST_COLUMNS:
@@ -302,6 +385,7 @@ def _croissant_context() -> dict[str, Any]:
         "conformsTo": "dct:conformsTo",
         "cr": "http://mlcommons.org/croissant/",
         "rai": "http://mlcommons.org/croissant/RAI/",
+        "prov": "http://www.w3.org/ns/prov#",
         "data": {"@id": "cr:data", "@type": "@json"},
         "dataType": {"@id": "cr:dataType", "@type": "@vocab"},
         "dct": "http://purl.org/dc/terms/",
@@ -355,7 +439,7 @@ def main() -> int:
         default="metadata/croissant_records.csv",
         help="Output manifest CSV path.",
     )
-    parser.add_argument("--dataset-url", default="https://github.com/TODO/LLMSYS-HPOBench")
+    parser.add_argument("--dataset-url", default="https://anonymous.4open.science/r/llmsys-hpobench-CD2B")
     parser.add_argument("--license-url", default="https://creativecommons.org/licenses/by/4.0/")
     parser.add_argument(
         "--creator",

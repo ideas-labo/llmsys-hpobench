@@ -12,6 +12,7 @@ The project focuses on systems where both AI parameters and non-AI system parame
 - Data normalization scripts for existing systems, including vLLM-specific log handling.
 - System manuals under [`manuals/`](manuals/).
 - A step-by-step contribution guide in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- Croissant metadata in [`croissant.json`](croissant.json) and a sample manifest in [`metadata/croissant_records.csv`](metadata/croissant_records.csv) for dataset publication.
 
 ## Repository Layout
 
@@ -32,12 +33,17 @@ LLMSYS-HPOBench/
 |   |-- normalize_sglang.py
 |   |-- normalize_vllm.py
 |   `-- slice_vllm_server_logs.py
-|-- tests/                          # Unit tests for loader and cleaning workflows
 |-- example-data/                   # Small example dataset
-`-- experiment-data/                # Local full benchmark data root
+|-- experiment-data/                # Full normalized benchmark data root
+|   `-- README.md                   # Data package structure and artifact guide
+|-- metadata/                       # Croissant sample manifest
+|-- croissant.json                  # Croissant metadata for dataset release
+`-- tests/                          # Unit tests for loader and cleaning workflows
 ```
 
-`experiment-data/` can be large and is ignored by Git by default. The benchmark loader expects data under this root in category/system form:
+`experiment-data/` contains the normalized benchmark samples and can be large. For dataset release, the full data package is archived on Zenodo at <https://zenodo.org/records/20048594> so users can download it independently from the source code. After downloading the Zenodo archive, extract it at the repository root so the path remains `experiment-data/`.
+
+The benchmark loader expects data under this root in category/system form:
 
 ```text
 experiment-data/
@@ -52,6 +58,8 @@ experiment-data/
     |-- LightRAG/
     `-- naiverag/
 ```
+
+See [`experiment-data/README.md`](experiment-data/README.md) for the data package structure, artifact naming rules, and the expected Zenodo extraction layout.
 
 Built-in system registrations currently include:
 
@@ -97,6 +105,18 @@ See [`format.md`](format.md) for the complete cleaning specification, including 
 
 The project uses only Python standard-library modules for the core loader and current tests. The commands below use `uv run python`, which is the recommended local invocation pattern for this repository.
 
+If you cloned only the source repository, download the full dataset archive from the project Zenodo record (<https://zenodo.org/records/20048594>), then extract it into the repository root:
+
+```text
+LLMSYS-HPOBench/
+`-- experiment-data/
+    |-- Agent/
+    |-- Engine/
+    `-- RAG/
+```
+
+Once extracted, the commands below can use `--root experiment-data` directly.
+
 List or sample a benchmark from the command line:
 
 ```bash
@@ -140,6 +160,8 @@ The returned measurement groups are:
 - `row`: the original parsed CSV row.
 
 By default, `Benchmark.evaluate()` returns the nearest observed row if an exact configuration is not found. Use `Benchmark(..., on_missing="error")` to require exact matches.
+
+Some attempted samples cannot start because of configuration-dependent constraints, such as an SGLang configuration whose requested context length is incompatible with the selected runtime settings. These rows are kept as observed failure samples when the raw workflow emitted a diagnostic artifact. In that case, the benchmark returns the linked `log-file` so users can inspect the failure reason, while objective, cost, or hardware fields may be empty if no valid run was produced.
 
 ## Data Cleaning Workflows
 

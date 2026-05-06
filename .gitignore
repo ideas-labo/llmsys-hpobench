@@ -2,4 +2,9 @@ __pycache__/
 *.pyc
 *.pyo
 .env
-experiment-data/
+
+# Full benchmark payloads are released through Zenodo.
+# Keep root-level files such as experiment-data/README.md trackable.
+experiment-data/Agent/
+experiment-data/Engine/
+experiment-data/RAG/

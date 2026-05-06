@@ -7,6 +7,7 @@
     "conformsTo": "dct:conformsTo",
     "cr": "http://mlcommons.org/croissant/",
     "rai": "http://mlcommons.org/croissant/RAI/",
+    "prov": "http://www.w3.org/ns/prov#",
     "data": {
       "@id": "cr:data",
       "@type": "@json"
@@ -52,8 +53,8 @@
   "url": "https://anonymous.4open.science/r/llmsys-hpobench-CD2B",
   "license": "https://creativecommons.org/licenses/by/4.0/",
   "version": "1.0.0",
-  "datePublished": "2026-05-05",
-  "citeAs": "TODO: add the NeurIPS 2026 dataset paper citation or DOI before submission.",
+  "datePublished": "2026-05-06",
+  "citeAs": "Anonymous. LLMSYS-HPOBench: Hyperparameter Optimization Benchmark Suite for Real-World LLM Systems. Submitted to the NeurIPS 2026 Datasets and Benchmarks Track.",
   "creator": [
     {
       "@type": "Person",
@@ -77,8 +78,57 @@
     "Offline benchmarking of LLM-system hyperparameter optimization methods.",
     "Analysis of trade-offs among system configuration, AI parameters, performance, cost, logs, and hardware traces."
   ],
-  "rai:dataLimitations": "The dataset contains observed benchmark samples rather than a complete continuous configuration space. Missing config-fidelity combinations should be treated as unobserved, not as failed runs unless explicitly encoded in the normalized CSV.",
+  "rai:dataLimitations": [
+    "The dataset contains observed benchmark samples rather than a complete continuous configuration space. Missing config-fidelity combinations should be treated as unobserved, not as failed runs unless explicitly encoded in the normalized CSV.",
+    "Benchmark results depend on the recorded software versions, hardware, workloads, and runtime conditions of each source system and should not be interpreted as universal performance claims for all deployments.",
+    "Log and hardware artifacts are linked when available, but some systems or historical runs may have incomplete artifact coverage."
+  ],
+  "rai:dataBiases": [
+    "Coverage is biased toward the LLM systems, fidelity factors, tasks, and configuration regions sampled by the project workflows.",
+    "Systems with more completed samples contribute more rows to aggregate analyses, so cross-system comparisons should account for uneven sample counts and fidelity coverage.",
+    "Hardware- and workload-specific behavior may bias objective and cost metrics toward the environments used during collection."
+  ],
   "rai:personalSensitiveInformation": "The normalized benchmark data is intended to contain system metrics, synthetic or benchmark task outputs, logs, and hardware measurements. Contributors should review logs before publication to remove any accidental secrets, credentials, or personal data.",
+  "rai:sourceDatasets": [
+    "autogpt benchmark samples: experiment-data/Agent/autogpt",
+    "openhands benchmark samples: experiment-data/Agent/openhands",
+    "SGLang benchmark samples: experiment-data/Engine/SGLang",
+    "vLLM benchmark samples: experiment-data/Engine/vLLM",
+    "LightRAG benchmark samples: experiment-data/RAG/LightRAG",
+    "html_rag benchmark samples: experiment-data/RAG/html_rag",
+    "naiverag benchmark samples: experiment-data/RAG/naiverag"
+  ],
+  "rai:provenanceActivities": [
+    {
+      "@type": "prov:Activity",
+      "@id": "activity_raw_collection",
+      "name": "Raw benchmark collection",
+      "description": "Run each system benchmark workflow and collect raw objective metrics, cost metrics, logs, and hardware traces."
+    },
+    {
+      "@type": "prov:Activity",
+      "@id": "activity_normalization",
+      "name": "Data normalization",
+      "description": "Convert raw outputs into the shared LLMSYS-HPOBench CSV layout with cfg-, cfg-ai-, obj-, cost-, hw-file, and log-file columns."
+    },
+    {
+      "@type": "prov:Activity",
+      "@id": "activity_artifact_linking",
+      "name": "Artifact linking",
+      "description": "Canonicalize per-sample log_file/log-ID.txt and hw_file/hw-ID.txt paths and link them from the normalized CSV rows."
+    },
+    {
+      "@type": "prov:Activity",
+      "@id": "activity_croissant_generation",
+      "name": "Croissant metadata generation",
+      "description": "Generate croissant.json and metadata/croissant_records.csv from the normalized experiment-data directory."
+    }
+  ],
+  "prov:wasGeneratedBy": [
+    {
+      "@id": "activity_croissant_generation"
+    }
+  ],
   "rai:dataCollection": "Samples were collected from local benchmark workflows and normalized into a common CSV schema with per-row log and hardware artifact references.",
   "rai:dataPreprocessing": "Raw outputs were cleaned into prefixed columns: cfg-* for non-AI parameters, cfg-ai-* for AI parameters, obj-* for objective metrics, cost-* for cost metrics, hw-file for hardware artifacts, and log-file for logs.",
   "rai:maintenancePlan": "Future systems can be added by contributing normalized fidelity directories, system manuals, and tests following CONTRIBUTING.md.",

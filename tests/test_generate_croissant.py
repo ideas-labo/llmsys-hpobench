@@ -61,7 +61,19 @@ ID,cfg-config_id,obj-score+,hw-file,log-file
             metadata = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(metadata["@type"], "sc:Dataset")
             self.assertEqual(metadata["name"], "LLMSYS-HPOBench")
+            self.assertIn("Anonymous", metadata["citeAs"])
+            self.assertIn(
+                "LLMSYS-HPOBench: Hyperparameter Optimization Benchmark Suite for Real-World LLM Systems",
+                metadata["citeAs"],
+            )
             self.assertIn("rai:dataUseCases", metadata)
+            self.assertIn("rai:dataLimitations", metadata)
+            self.assertIsInstance(metadata["rai:dataLimitations"], list)
+            self.assertIn("rai:dataBiases", metadata)
+            self.assertIn("rai:sourceDatasets", metadata)
+            self.assertEqual(metadata["rai:sourceDatasets"][0], "vLLM benchmark samples: experiment-data/Engine/vLLM")
+            self.assertIn("rai:provenanceActivities", metadata)
+            self.assertIn("prov", metadata["@context"])
             self.assertIn("distribution", metadata)
             self.assertIn("recordSet", metadata)
             self.assertEqual(metadata["recordSet"][0]["@id"], "sample_manifest")
