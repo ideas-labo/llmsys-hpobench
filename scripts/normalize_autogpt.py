@@ -109,6 +109,7 @@ class RawFidelityDir:
 def normalize_autogpt_dataset(
     root: str | Path = "experiment-data/Agent/autogpt",
     *,
+    source_root: str | Path | None = None,
     remove_raw: bool = False,
     overwrite: bool = True,
 ) -> dict[str, int]:
@@ -118,7 +119,10 @@ def normalize_autogpt_dataset(
     if not system_root.is_dir():
         raise FileNotFoundError(f"AutoGPT root not found: {system_root}")
 
-    raw_root = system_root / "large_scale" if (system_root / "large_scale").is_dir() else system_root
+    if source_root is not None:
+        raw_root = Path(source_root).resolve()
+    else:
+        raw_root = system_root / "large_scale" if (system_root / "large_scale").is_dir() else system_root
     fidelities_root = raw_root / "fidelities"
     if not fidelities_root.is_dir():
         raise FileNotFoundError(f"AutoGPT raw fidelities directory not found: {fidelities_root}")
@@ -166,7 +170,9 @@ def normalize_autogpt_dataset(
 
             log_ref = _write_log_file(
                 sample_path.with_suffix(".log"),
+                payload.get("task_results"),
                 payload.get("server_log_offsets"),
+                raw_root,
                 output_dir,
                 row_id,
             )
@@ -188,7 +194,7 @@ def normalize_autogpt_dataset(
         summary["output_csv_files"] += 1
         summary["rows"] += len(rows)
 
-    if remove_raw and raw_root != system_root and raw_root.is_dir():
+    if remove_raw and source_root is None and raw_root != system_root and raw_root.is_dir():
         shutil.rmtree(raw_root)
         summary["raw_root_removed"] = 1
 
@@ -281,7 +287,9 @@ def _write_hardware_file(hardware: Any, output_dir: Path, row_id: int) -> str:
 
 def _write_log_file(
     sample_log: Path,
+    task_results: Any,
     server_log_offsets: Any,
+    raw_root: Path,
     output_dir: Path,
     row_id: int,
 ) -> str:
@@ -289,6 +297,10 @@ def _write_log_file(
     if sample_log.is_file():
         content = sample_log.read_text(encoding="utf-8", errors="replace")
         sections.append(("SAMPLE LOG", f"source: {sample_log.name}\n\n{content}"))
+    task_results_text = _format_task_results(task_results)
+    if task_results_text:
+        sections.append(("TASK RESULTS", task_results_text))
+    sections.extend(_server_log_sections(server_log_offsets, raw_root))
     if server_log_offsets:
         content = json.dumps(server_log_offsets, indent=2, sort_keys=True)
         sections.append(("SERVER LOG OFFSETS", content))
@@ -306,6 +318,80 @@ def _write_log_file(
             if content and not content.endswith("\n"):
                 handle.write("\n")
     return _relative_path(destination, output_dir)
+
+
+def _server_log_sections(server_log_offsets: Any, raw_root: Path) -> list[tuple[str, str]]:
+    if not isinstance(server_log_offsets, dict):
+        return []
+
+    sections: list[tuple[str, str]] = []
+    for name in ("autogpt", "vllm"):
+        offsets = server_log_offsets.get(name)
+        if not isinstance(offsets, dict):
+            continue
+        log_path = _resolve_server_log_path(name, raw_root, offsets.get("path"))
+        content = _read_log_slice(log_path, offsets)
+        if not content:
+            continue
+        title = f"{name.upper()} SERVER LOG"
+        source = offsets.get("path") or log_path.name
+        sections.append((title, f"source: {source}\nlocal_source: {_relative_path(log_path, raw_root.parent)}\n\n{content}"))
+    return sections
+
+
+def _resolve_server_log_path(name: str, raw_root: Path, source_path: Any) -> Path:
+    candidates: list[Path] = []
+    if source_path:
+        candidates.append(raw_root.parent / Path(str(source_path)).name)
+    candidates.append(raw_root.parent / ("autogpt_server.log" if name == "autogpt" else f"{name}.log"))
+    candidates.append(raw_root / ("autogpt_server.log" if name == "autogpt" else f"{name}.log"))
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[0]
+
+
+def _read_log_slice(log_path: Path, offsets: dict[str, Any]) -> str:
+    if not log_path.is_file():
+        return ""
+    try:
+        start = int(offsets.get("start_byte", 0))
+        end = int(offsets.get("end_byte", 0))
+    except (TypeError, ValueError):
+        return ""
+    if start < 0 or end <= start:
+        return ""
+    with log_path.open("rb") as handle:
+        handle.seek(start)
+        data = handle.read(end - start)
+    return data.decode("utf-8", errors="replace")
+
+
+def _format_task_results(task_results: Any) -> str:
+    if not task_results:
+        return ""
+    if not isinstance(task_results, list):
+        return json.dumps(task_results, indent=2, sort_keys=True)
+
+    sections = []
+    for index, result in enumerate(task_results, start=1):
+        if not isinstance(result, dict):
+            sections.append(f"--- TASK {index} ---\n{_format_value(result)}")
+            continue
+        lines = [f"--- TASK {index} ---"]
+        for key in ("task_id", "run_id", "status", "duration", "error"):
+            if key in result and result.get(key) not in (None, ""):
+                lines.append(f"{key}: {_format_value(result.get(key))}")
+        output = result.get("output")
+        if output not in (None, ""):
+            lines.append("output:")
+            lines.append(_format_value(output))
+        metadata = result.get("metadata")
+        if metadata:
+            lines.append("metadata:")
+            lines.append(json.dumps(metadata, indent=2, sort_keys=True))
+        sections.append("\n".join(lines))
+    return "\n\n".join(sections)
 
 
 def _fieldnames() -> list[str]:
@@ -341,6 +427,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Normalize raw AutoGPT large-scale samples in place.")
     parser.add_argument("--root", default="experiment-data/Agent/autogpt", help="AutoGPT system root.")
     parser.add_argument(
+        "--source-root",
+        default=None,
+        help=(
+            "Optional raw AutoGPT large_scale root. Use this when raw files live outside "
+            "the normalized system root, for example experiment-data/autogpt_original/large_scale."
+        ),
+    )
+    parser.add_argument(
         "--remove-raw",
         action="store_true",
         help="Remove the raw large_scale directory after normalized artifacts are written.",
@@ -354,6 +448,7 @@ def main() -> int:
 
     summary = normalize_autogpt_dataset(
         args.root,
+        source_root=args.source_root,
         remove_raw=args.remove_raw,
         overwrite=not args.no_overwrite,
     )

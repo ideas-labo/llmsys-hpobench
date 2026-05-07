@@ -86,13 +86,40 @@ new,1
 
             summary = normalize_experiment_data(root)
 
-            target = fidelity_dir / "fc7_rc9_pd5_sc6.csv"
+            renamed_dir = root / "Agent" / "openhands" / "7-9-5-6"
+            target = renamed_dir / "7-9-5-6.csv"
             self.assertTrue(target.is_file())
             self.assertFalse((fidelity_dir / "5_1__fc7_rc9_pd5_sc6.csv").exists())
             header, rows = read_rows(target)
             self.assertEqual(rows[0]["cfg-a"], "new")
             self.assertEqual(header[0], "ID")
             self.assertEqual(summary["openhands_duplicate_dirs_fixed"], 1)
+            self.assertEqual(summary["fidelity_dirs_renamed"], 1)
+
+    def test_renames_legacy_fidelity_directories_to_hyphen_separated_values(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "experiment-data"
+            cases = [
+                ("RAG", "LightRAG", "bridge_0_0_2", "bridge-0-0-2"),
+                ("RAG", "naiverag", "0.2_0_easy_agriculture", "0.2-0-easy-agriculture"),
+                ("RAG", "html_rag", "DC_1_HR_01_QR_05", "1-01-05"),
+                ("Agent", "openhands", "fc7_rc7_pd1_sc1", "7-7-1-1"),
+            ]
+            for category, system, old_name, _new_name in cases:
+                write_csv(
+                    root / category / system / old_name / f"{old_name}.csv",
+                    """
+cfg-a,obj-score+
+x,1
+""",
+                )
+
+            summary = normalize_experiment_data(root)
+
+            self.assertEqual(summary["fidelity_dirs_renamed"], len(cases))
+            for category, system, old_name, new_name in cases:
+                self.assertFalse((root / category / system / old_name).exists())
+                self.assertTrue((root / category / system / new_name / f"{new_name}.csv").is_file())
 
     def test_merges_legacy_client_and_server_logs_into_canonical_log_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:

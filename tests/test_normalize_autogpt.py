@@ -79,11 +79,23 @@ class NormalizeAutoGptTests(unittest.TestCase):
                         "during": [{"cpu_percent": 12.0}],
                     },
                     "server_log_offsets": {
-                        "vllm": {"start_byte": 1, "end_byte": 2},
+                        "vllm": {"start_byte": 10, "end_byte": 27},
+                        "autogpt": {"start_byte": 10, "end_byte": 30},
                     },
+                    "task_results": [
+                        {
+                            "task_id": "simple_r1_code_generation_task_000",
+                            "status": "success",
+                            "duration": 12.3,
+                            "output": "agent final answer text",
+                            "error": None,
+                        }
+                    ],
                 },
             )
             write_text(raw_fidelity / f"{sample_name}.log", "sample log body")
+            (root / "vllm.log").write_bytes(b"0123456789vllm server sliceabcdef")
+            (root / "autogpt_server.log").write_bytes(b"0123456789autogpt server sliceabcdef")
 
             summary = normalize_autogpt_dataset(root)
 
@@ -117,7 +129,47 @@ class NormalizeAutoGptTests(unittest.TestCase):
             log_text = (csv_path.parent / rows[0]["log-file"]).read_text(encoding="utf-8")
             self.assertIn("===== SAMPLE LOG =====", log_text)
             self.assertIn("sample log body", log_text)
+            self.assertIn("===== TASK RESULTS =====", log_text)
+            self.assertIn("agent final answer text", log_text)
+            self.assertIn("===== VLLM SERVER LOG =====", log_text)
+            self.assertIn("vllm server slice", log_text)
+            self.assertIn("===== AUTOGPT SERVER LOG =====", log_text)
+            self.assertIn("autogpt server slice", log_text)
             self.assertIn("===== SERVER LOG OFFSETS =====", log_text)
+
+    def test_can_read_raw_data_from_separate_source_root(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            output_root = temp_root / "experiment-data" / "Agent" / "autogpt"
+            source_root = temp_root / "experiment-data" / "autogpt_original" / "large_scale"
+            raw_fidelity = source_root / "fidelities" / "simple_r1_code_generation"
+            write_json(
+                raw_fidelity / "agent_config_1.json",
+                {
+                    "sample_id": "agent_config_1_simple_r1_code_generation",
+                    "agent_config_id": "agent_config_1",
+                    "fidelity_config": {
+                        "task_type": "simple",
+                        "requests_count": 1,
+                        "workload_category": "code_generation",
+                    },
+                    "metrics": {},
+                    "task_results": [{"task_id": "t1", "output": "raw source task output"}],
+                    "server_log_offsets": {"vllm": {"start_byte": 7, "end_byte": 27}},
+                },
+            )
+            write_text(raw_fidelity / "agent_config_1.log", "raw source sample log")
+            (source_root.parent / "vllm.log").write_bytes(b"prefix raw source vllm body suffix")
+            output_root.mkdir(parents=True)
+
+            normalize_autogpt_dataset(output_root, source_root=source_root)
+
+            log_text = (
+                output_root / "simple-req1-code_generation" / "log_file" / "log-1.txt"
+            ).read_text(encoding="utf-8")
+            self.assertIn("raw source sample log", log_text)
+            self.assertIn("raw source task output", log_text)
+            self.assertIn("raw source vllm body", log_text)
 
 
 if __name__ == "__main__":

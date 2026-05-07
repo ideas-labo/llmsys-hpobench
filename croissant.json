@@ -53,7 +53,7 @@
   "url": "https://anonymous.4open.science/r/llmsys-hpobench-CD2B",
   "license": "https://creativecommons.org/licenses/by/4.0/",
   "version": "1.0.0",
-  "datePublished": "2026-05-06",
+  "datePublished": "2026-05-07",
   "citeAs": "Anonymous. LLMSYS-HPOBench: Hyperparameter Optimization Benchmark Suite for Real-World LLM Systems. Submitted to the NeurIPS 2026 Datasets and Benchmarks Track.",
   "creator": [
     {
@@ -172,7 +172,7 @@
       "description": "Manifest with one row per normalized benchmark sample.",
       "contentUrl": "metadata/croissant_records.csv",
       "encodingFormat": "text/csv",
-      "sha256": "61da5d6547a1b8d2ca281400ccdd651a7784c9a3805372f6c913d272477e38ba"
+      "sha256": "2356a474e7743bbfdf4038c0e85c79515c8c0ad27389d13d4270812777c1e860"
     },
     {
       "@type": "cr:FileSet",

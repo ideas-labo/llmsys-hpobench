@@ -191,7 +191,13 @@ Normalize raw AutoGPT sampling data in place:
 uv run python scripts/normalize_autogpt.py --root experiment-data/Agent/autogpt --remove-raw
 ```
 
-The AutoGPT normalizer reads `large_scale/fidelities/*/*.json`, writes fidelity directories named as `{task_type}-req{requests_count}-{workload_category}`, and materializes both `hw_file/hw-{ID}.txt` and `log_file/log-{ID}.txt` when the raw sample contains hardware data or a run log.
+If the raw files are stored outside the normalized system directory, point the script at the source root:
+
+```bash
+uv run python scripts/normalize_autogpt.py --root experiment-data/Agent/autogpt --source-root experiment-data/autogpt_original/large_scale
+```
+
+The AutoGPT normalizer reads `large_scale/fidelities/*/*.json`, writes fidelity directories named as `{task_type}-req{requests_count}-{workload_category}`, and materializes both `hw_file/hw-{ID}.txt` and `log_file/log-{ID}.txt` when the raw sample contains hardware data or a run log. Each AutoGPT log artifact includes the raw sample log, `task_results` output text, and byte-range slices from `experiment-data/autogpt_original/autogpt_server.log` and `experiment-data/autogpt_original/vllm.log` when those source logs are available. The original server-log offsets are retained as provenance metadata at the end of the combined log file.
 
 Slice normalized vLLM server logs so each row links only the server-side segment for that sampled client run:
 

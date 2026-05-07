@@ -89,6 +89,14 @@ To ensure that evaluation results accurately reflect real-world deployments, sev
 | **Question difficulty**       | The difficulty of query question ["easy", "medium", "hard"]                                                                                                                                                                                                     |  
 | **Question ratio**            | The proportion of test samples                                                                                                                                                                                                                                  |  
 
+The normalized fidelity directory and CSV name use hyphen-separated values:
+
+```text
+{question_type}-{question_difficulty}-{question_ratio}-{effective_reference_ratio}
+```
+
+Example: `bridge-0-0-2`.
+
 
 
 ### Performance Metrics  

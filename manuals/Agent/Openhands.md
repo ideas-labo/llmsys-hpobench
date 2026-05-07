@@ -51,6 +51,14 @@ Dataset2
 | **Domain**                 | Subject domain of each question.                                                                                                | `[biology, chemistry, physics]`                                               |
 | **Prompt Length (tokens)** | Total token count of the agent prompt (instruction + question + options). Measures sensitivity to context size and memory load. | `[0–128, 128–256, 256–384, 384–512, 512–768, 768–1024, 1024–1536, 1536–2048]` |
 
+The current normalized ProofWriter/OpenHands samples use hyphen-separated fidelity values:
+
+```text
+{facts_count}-{rules_count}-{proof_depth}-{context_sentences}
+```
+
+Example: `7-7-1-1`.
+
 
 ### Cost / Runtime Considerations
 - **Tokens:** Additional time due to function parsing, execution, and queue updates.

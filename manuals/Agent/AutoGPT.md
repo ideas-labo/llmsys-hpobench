@@ -222,6 +222,8 @@ hw_file/hw-{ID}.txt
 log_file/log-{ID}.txt
 ```
 
+Each normalized `log_file/log-{ID}.txt` contains titled sections. `SAMPLE LOG` stores the raw per-sample `.log` text, `TASK RESULTS` stores the corresponding `task_results` output text from the source JSON, `AUTOGPT SERVER LOG` stores the byte-range slice from `autogpt_server.log`, and `VLLM SERVER LOG` stores the byte-range slice from `vllm.log`. `SERVER LOG OFFSETS` is kept at the end of the file as provenance metadata so each extracted server segment can be traced back to its original source log and byte range.
+
 | Factor | Source | `--inner-loop plan_b` (default) | `--inner-loop full` |
 |---|---|---|---|
 | **Task Type (Difficulty)** | `mf_sampler/config.py::TaskType` (4-level enum: simple / moderate / complex / multi_stage). Conceptually similar to agbenchmark's `DifficultyLevel` (`agbenchmark/utils/data_types.py:7-14`) but **with no direct source-code mapping**. | **[SIMPLE, COMPLEX]** — only the two extremes; MODERATE / MULTI_STAGE have low SNR vs their neighbours and were dropped to halve the inner loop. | **[SIMPLE, MODERATE, COMPLEX, MULTI_STAGE]** — full enum span (4 values). |

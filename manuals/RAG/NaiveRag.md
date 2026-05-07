@@ -64,6 +64,14 @@ To ensure that evaluation results accurately reflect real-world deployments, sev
 | `Corpus_scale` | Corpus scale: number of additional domain corpora mixed into the main dataset (0-3) |
 | `Dataset_category` | Dataset category: 0-agriculture, 1-art, 2-biography, 3-cs (different scale) |
 
+The normalized fidelity directory and CSV name use hyphen-separated values:
+
+```text
+{question_ratio}-{corpus_scale}-{question_difficulty}-{dataset_category}
+```
+
+Example: `0.2-0-easy-agriculture`.
+
 ### UltraDomain Benchmark (with Four Sub-Datasets)
 
 - **Sub-Datasets Composition**:  

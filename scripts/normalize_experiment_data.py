@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import csv
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Iterable
@@ -59,9 +60,11 @@ def normalize_experiment_data(root: str | Path = "experiment-data") -> dict[str,
         "log_files_merged": 0,
         "fidelity_columns_removed": 0,
         "artifact_files_canonicalized": 0,
+        "fidelity_dirs_renamed": 0,
     }
 
     summary["openhands_duplicate_dirs_fixed"] = _fix_openhands_duplicate_csv(data_root)
+    summary["fidelity_dirs_renamed"] = _rename_legacy_fidelity_dirs(data_root)
 
     for csv_path in _benchmark_csvs(data_root):
         rewrite_summary = _normalize_csv(csv_path)
@@ -93,6 +96,60 @@ def _fix_openhands_duplicate_csv(root: Path) -> int:
                     extra_csv.unlink()
             fixed += 1
     return fixed
+
+
+def _rename_legacy_fidelity_dirs(root: Path) -> int:
+    renamed = 0
+    system_rules = {
+        ("Agent", "openhands"): _canonical_openhands_fidelity_name,
+        ("RAG", "LightRAG"): _replace_underscores_with_hyphens,
+        ("RAG", "naiverag"): _replace_underscores_with_hyphens,
+        ("RAG", "html_rag"): _canonical_html_rag_fidelity_name,
+    }
+
+    for (category, system), normalizer in system_rules.items():
+        system_root = root / category / system
+        if not system_root.is_dir():
+            continue
+        for fidelity_dir in sorted(path for path in system_root.iterdir() if path.is_dir()):
+            new_name = normalizer(fidelity_dir.name)
+            if not new_name or new_name == fidelity_dir.name:
+                _rename_main_csv_to_match_dir(fidelity_dir, fidelity_dir.name)
+                continue
+            target_dir = fidelity_dir.with_name(new_name)
+            if target_dir.exists():
+                raise FileExistsError(f"cannot rename {fidelity_dir} to existing directory {target_dir}")
+            _rename_main_csv_to_match_dir(fidelity_dir, new_name)
+            shutil.move(str(fidelity_dir), str(target_dir))
+            renamed += 1
+    return renamed
+
+
+def _rename_main_csv_to_match_dir(fidelity_dir: Path, fidelity_name: str) -> None:
+    target = fidelity_dir / f"{fidelity_name}.csv"
+    if target.exists():
+        return
+    csvs = sorted(fidelity_dir.glob("*.csv"))
+    if len(csvs) == 1:
+        shutil.move(str(csvs[0]), str(target))
+
+
+def _canonical_openhands_fidelity_name(name: str) -> str:
+    match = re.fullmatch(r"fc(\d+)_rc(\d+)_pd(\d+)_sc(\d+)", name)
+    if not match:
+        return name
+    return "-".join(match.groups())
+
+
+def _canonical_html_rag_fidelity_name(name: str) -> str:
+    match = re.fullmatch(r"DC_([^_]+)_HR_([^_]+)_QR_([^_]+)", name)
+    if not match:
+        return name
+    return "-".join(match.groups())
+
+
+def _replace_underscores_with_hyphens(name: str) -> str:
+    return name.replace("_", "-")
 
 
 def _benchmark_csvs(root: Path) -> list[Path]:
@@ -164,6 +221,7 @@ def _normalize_header(fieldnames: Iterable[str]) -> tuple[list[str], dict[str, s
         "log_files_merged": 0,
         "fidelity_columns_removed": 0,
         "artifact_files_canonicalized": 0,
+        "fidelity_dirs_renamed": 0,
     }
 
     normalized_fields: list[str] = []
