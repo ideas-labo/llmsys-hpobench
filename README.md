@@ -1,5 +1,8 @@
 # LLMSYS-HPOBench
 
+[![arXiv](https://img.shields.io/badge/arXiv-XXXX.XXXXX-b31b1b.svg)](https://arxiv.org/abs/XXXX.XXXXX)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 LLMSYS-HPOBench is an offline benchmark and data organization project for LLM-system hyperparameter optimization. It collects sampled results from different LLM-system families, normalizes them into a shared tabular format, and exposes a lightweight Python interface for evaluating observed configurations.
 
 The project focuses on systems where both AI parameters and non-AI system parameters matter, such as inference engines, RAG pipelines, and agent frameworks. Each benchmark row links the measured objective/cost values back to the corresponding client log, server log, and hardware artifact when those artifacts are available.
@@ -262,3 +265,17 @@ uv run python example.py
 - Keep `CONTRIBUTING.md` focused on external contribution steps.
 - Keep `README.md` as the project overview and first-use guide.
 - Do not expand large logs or hardware traces directly into main CSV files unless a future benchmark task explicitly requires it; prefer artifact references.
+
+
+## Citation
+
+If you use LLMSYS-HPOBench in your work, please cite:
+
+```bibtex
+@misc{llmsys-hpobench,
+    title={LLMSYS-HPOBench: Hyperparameter Optimization Benchmark Suite for Real-World LLM Systems},
+    author={Siyu Wu and Yulong Ye and Zezhen Xiang and Pengzhou Chen and Gangda Xiong and Tao Chen},
+    year={2026},
+    howpublished={arXiv preprint arXiv:XXXX.XXXXX}
+}
+```
