@@ -531,9 +531,16 @@ def main() -> int:
     print(f"config columns={len(config_space.columns)} (ai={len(config_space.ai_columns)}, non_ai={len(config_space.non_ai_columns)})")
 
     rng = random.Random(0)
-    for index in range(args.budget):
+    budget = float(args.budget)
+    t = 0.0
+    index = 0
+    while t < budget:
         config = config_space.sample(fidelity=fidelity, random_state=rng)
         measurement = benchmark.evaluate(config=config, fidelity=fidelity)
+        cost_values = [
+            value for value in measurement["cost"].values() if isinstance(value, (int, float))
+        ]
+        cost = sum(cost_values) if cost_values else 0.0
         print(
             {
                 "iter": index,
@@ -544,6 +551,10 @@ def main() -> int:
                 "log": measurement["log"],
             }
         )
+        t = t + cost
+        index += 1
+        if cost == 0.0:
+            break
     return 0
 
 
