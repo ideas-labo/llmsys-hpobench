@@ -1,4 +1,4 @@
-# LLMSYS-HPOBench
+# LLMSYS-HPOBench: Hyperparameter Optimization Benchmark Suite for Real-World LLM Systems
 
 [![arXiv](https://img.shields.io/badge/arXiv-XXXX.XXXXX-b31b1b.svg)](https://arxiv.org/abs/XXXX.XXXXX)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
