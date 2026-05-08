@@ -3,6 +3,8 @@
 [![arXiv](https://img.shields.io/badge/arXiv-XXXX.XXXXX-b31b1b.svg)](https://arxiv.org/abs/XXXX.XXXXX)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+[Quick Start](#quick-start) | [Contributing](CONTRIBUTING.md)
+
 LLMSYS-HPOBench is an offline benchmark and data organization project for LLM-system hyperparameter optimization. It collects sampled results from different LLM-system families, normalizes them into a shared tabular format, and exposes a lightweight Python interface for evaluating observed configurations.
 
 The project focuses on systems where both AI parameters and non-AI system parameters matter, such as inference engines, RAG pipelines, and agent frameworks. Each benchmark row links the measured objective/cost values back to the corresponding client log, server log, and hardware artifact when those artifacts are available.
