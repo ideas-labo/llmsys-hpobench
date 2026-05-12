@@ -21,8 +21,6 @@ while t < budget:
     cost_values = [value for value in m["cost"].values() if isinstance(value, (int, float))]
     cost = sum(cost_values) if cost_values else 0.0
     t = t + cost
-    if cost == 0.0:
-        break
 
 fidelity_dir = Path(m["fidelity"]["path"]).parent
 

@@ -553,8 +553,7 @@ def main() -> int:
         )
         t = t + cost
         index += 1
-        if cost == 0.0:
-            break
+
     return 0
 
 
