@@ -1,7 +1,8 @@
 # LLMSYS-HPOBench: Hyperparameter Optimization Benchmark Suite for Real-World LLM Systems
 
 [![arXiv](https://img.shields.io/badge/arXiv-2605.08305-b31b1b.svg)](https://arxiv.org/abs/2605.08305)
-[![Zenodo](https://img.shields.io/badge/Zenodo-20048594-1682d4.svg)](https://zenodo.org/records/20048594)
+[![Zenodo](https://img.shields.io/badge/Zenodo-23956381-1682d4.svg)](https://zenodo.org/records/23956381)
+[![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Dataset-FFD21E.svg?logo=huggingface&logoColor=black)](https://huggingface.co/datasets/KleinWu/llmsys-hpobench)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Made with Python](https://img.shields.io/badge/Made%20with-Python-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 
@@ -10,6 +11,10 @@
 LLMSYS-HPOBench is a live benchmark and data organization project for LLM-system hyperparameter optimization. It collects sampled results from different LLM-system families, normalizes them into a shared tabular format, and exposes a lightweight Python interface for evaluating observed configurations.
 
 The project focuses on systems where both AI parameters and non-AI system parameters matter, such as inference engines, RAG pipelines, and agent frameworks. Each benchmark row links the measured objective/cost values back to the corresponding client log, server log, and hardware artifact when those artifacts are available.
+
+## News
+
+- **2026-11-05 — Dataset update.** An updated LLMSYS-HPOBench data archive is available on [Zenodo](https://zenodo.org/records/23956381), together with a SHA-256 checksum file for download verification. The dataset is also available on [Hugging Face](https://huggingface.co/datasets/KleinWu/llmsys-hpobench) for browsing and download.
 
 ## What This Repository Provides
 
@@ -48,7 +53,7 @@ LLMSYS-HPOBench/
 `-- tests/                          # Unit tests for loader and cleaning workflows
 ```
 
-`experiment-data/` contains the normalized benchmark samples and can be large. For dataset release, the full data package is archived on Zenodo at <https://zenodo.org/records/20048594> so users can download it independently from the source code. After downloading the Zenodo archive, extract it at the repository root so the path remains `experiment-data/`.
+`experiment-data/` contains the normalized benchmark samples and can be large. For dataset release, the full data package is archived on Zenodo at <https://zenodo.org/records/23956381> so users can download it independently from the source code. After downloading the Zenodo archive, extract it at the repository root so the path remains `experiment-data/`.
 
 The benchmark loader expects data under this root in category/system form:
 
@@ -112,7 +117,7 @@ See [`format.md`](format.md) for the complete cleaning specification, including 
 
 The project uses only Python standard-library modules for the core loader and current tests. The commands below use `uv run python`, which is the recommended local invocation pattern for this repository.
 
-If you cloned only the source repository, download the full dataset archive from the project Zenodo record (<https://zenodo.org/records/20048594>), then extract it into the repository root:
+If you cloned only the source repository, download the full dataset archive from the project Zenodo record (<https://zenodo.org/records/23956381>), then extract it into the repository root:
 
 ```text
 LLMSYS-HPOBench/

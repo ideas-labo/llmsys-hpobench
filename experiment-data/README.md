@@ -2,9 +2,9 @@
 
 This directory is the normalized data package for LLMSYS-HPOBench. It is intended to be kept at the repository root and archived on Zenodo as `experiment-data/` so users can download the benchmark data separately from the source code.
 
-Zenodo record: <https://zenodo.org/records/20048594>
+Zenodo record: <https://zenodo.org/records/23956381>
 
-After downloading the archive from <https://zenodo.org/records/20048594>, extract it so the directory layout is:
+After downloading the archive from <https://zenodo.org/records/23956381>, extract it so the directory layout is:
 
 ```text
 LLMSYS-HPOBench/
