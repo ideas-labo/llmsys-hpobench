@@ -1,0 +1,61 @@
+dataset_root: datasets
+processed_root: datasets_processed
+results_root: results_3x
+densities: [20, 40, 60, 80, 100]
+fallbacks: ["1nn", "rf"]
+tuners: [random_search, smac, hebo, hyperband, bohb]
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+budget_seconds: 30000.0
+workers: 15
+density_seed: 20260731
+
+systems:
+  LightRAG:
+    fidelities:
+      1: bridge-0-0-2
+      2: bridge-1-2-5
+      4: bridge-2-5-10
+    objective: obj-f1_score+
+    cost: cost-total_time
+  naiverag:
+    fidelities:
+      1: 0.5-0-easy-cs
+      2: 0.5-1-easy-cs
+      4: 0.5-2-easy-cs
+    objective: obj-Lexical_AC+
+    cost: cost-Total_Time
+  vLLM:
+    fidelities:
+      1: 15.0-2.0-32-50-r1
+      2: 15.0-2.0-32-100-r1
+      4: 15.0-2.0-32-200-r1
+    objective: obj-output_throughput+
+    cost: cost-benchmark_duration_s
+  SGLang:
+    fidelities:
+      1: inf-2.0-32-64-1024
+      2: inf-2.0-32-64-2048
+      4: inf-2.0-32-64-4096
+    objective: obj-output_throughput+
+    cost: cost-duration
+  html_rag:
+    fidelities:
+      1: 2-01-10
+      2: 2-02-10
+      4: 2-025-10
+    objective: obj-Avg_Similarity+
+    cost: cost-Total_Time
+  openhands:
+    fidelities:
+      1: 10-4-5-6
+      2: 14-4-5-6
+      4: 20-4-5-6
+    objective: obj-accuracy+
+    cost: cost-total_time_sec
+  autogpt:
+    fidelities:
+      1: complex-req1-code_generation
+      2: complex-req2-code_generation
+      4: complex-req4-code_generation
+    objective: obj-throughput_tasks_per_sec+
+    cost: cost-total_duration

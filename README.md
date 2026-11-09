@@ -115,7 +115,7 @@ See [`format.md`](format.md) for the complete cleaning specification, including 
 
 ## Quick Start
 
-The project uses only Python standard-library modules for the core loader and current tests. The commands below use `uv run python`, which is the recommended local invocation pattern for this repository.
+The loader's case-study evaluator uses pandas and scikit-learn. The published dependency versions are recorded in `pyproject.toml` and `uv.lock`. The commands below use `uv run python` with the locked Python 3.10 environment.
 
 If you cloned only the source repository, download the full dataset archive from the project Zenodo record (<https://zenodo.org/records/23956381>), then extract it into the repository root:
 
@@ -141,7 +141,7 @@ Use the benchmark wrapper from Python:
 from pathlib import Path
 from llmsys_hpobench import Benchmark
 
-b = Benchmark(system="vLLM", root="experiment-data")
+b = Benchmark(system="vLLM", root="experiment-data", random_state=0)
 
 X = b.get_config_space()
 Z = b.get_fidelity_space()
@@ -170,8 +170,36 @@ The returned measurement groups are:
 - `config_non_ai`: values from `cfg-*`.
 - `fidelity`: fidelity name and CSV path. Fidelity factor values are encoded in the fidelity directory/CSV file name, not duplicated as CSV columns.
 - `row`: the original parsed CSV row.
+- `source`: the per-objective and per-cost source, recorded as `exact` or `random_forest`.
 
-By default, `Benchmark.evaluate()` returns the nearest observed row if an exact configuration is not found. Use `Benchmark(..., on_missing="error")` to require exact matches.
+By default, `Benchmark.evaluate()` reproduces the case-study evaluator. It first averages finite values from all rows that exactly match the complete configuration. Each objective or cost label without an exact finite value is predicted independently by a 200-tree `RandomForestRegressor`. Models are fitted separately for every fidelity and label with `n_jobs=1`; categorical parameters use `OneHotEncoder(handle_unknown="ignore")`, and numeric parameters pass through without scaling.
+
+Use `Benchmark(..., evaluator="nearest")` to select the public loader's historical unscaled nearest-record behavior. Use `Benchmark(..., evaluator="error")` to require an exact recorded configuration. The former `on_missing="nearest"` and `on_missing="error"` arguments remain accepted for compatibility.
+
+Predicted configurations return empty `hardware`, `log`, and `row` groups because no physical execution artifact exists for the prediction. Exact configurations retain their recorded artifact metadata.
+
+## Case Study Reproduction
+
+The recovered case-study implementation is published in [`llmsys/`](llmsys/) with its archived Table 2 protocol in [`experiments/case_study/experiment_table2.yaml`](experiments/case_study/experiment_table2.yaml). It contains Random Search, SMAC, HEBO, Hyperband, and BOHB adapters. The protocol covers seven systems, 30 seeds, five data densities, the archived fidelity schedules, and a returned-cost budget of 30,000 seconds. [`experiments/case_study/experiment.yaml`](experiments/case_study/experiment.yaml) records the later four-system coverage-corrected protocol separately.
+
+Prepare the archived seeded density subsets after placing the normalized case-study CSV files under `datasets/`:
+
+```bash
+uv run python -m llmsys.prepare_densities --config experiments/case_study/experiment_table2.yaml
+```
+
+Run one verified job before scheduling the full matrix:
+
+```bash
+uv run --extra case-study python experiments/case_study/run.py \
+  --config experiments/case_study/experiment_table2.yaml \
+  --fallback rf --density 100 --seed 0 --system vLLM \
+  --tuner random_search --workers 1
+```
+
+The evaluator permits a query to start while budget remains and charges its complete returned cost afterward. Consequently, the final recorded query may take cumulative returned cost beyond 30,000 seconds. Every lower-resource and target-resource query is charged. The highest configured rung is the common target used by target-only and multi-fidelity methods.
+
+[`experiments/case_study/data_manifest.json`](experiments/case_study/data_manifest.json) records the recovered source archive hash, recovered implementation hashes, density-selection seed, and density-manifest hash. The dataset files must match the separately released archive before results are reported.
 
 Some attempted samples cannot start because of configuration-dependent constraints, such as an SGLang configuration whose requested context length is incompatible with the selected runtime settings. These rows are kept as observed failure samples when the raw workflow emitted a diagnostic artifact. In that case, the benchmark returns the linked `log-file` so users can inspect the failure reason, while objective, cost, or hardware fields may be empty if no valid run was produced.
 

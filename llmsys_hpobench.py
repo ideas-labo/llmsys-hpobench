@@ -32,6 +32,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from llmsys_evaluator import EvaluationRecord, ExperimentalRandomForestEvaluator
+
 
 SYSTEM_REGISTRY: dict[str, str] = {
     "vLLM": "Engine/vLLM",
@@ -141,6 +143,7 @@ class Measurement(dict):
         log: Iterable[str] | None = None,
         config: Iterable[str] | None = None,
         fidelity: Iterable[str] | None = None,
+        source: Iterable[str] | None = None,
     ) -> dict[str, dict[str, Any]]:
         requested = {
             "perf": perf,
@@ -149,6 +152,7 @@ class Measurement(dict):
             "log": log,
             "config": config,
             "fidelity": fidelity,
+            "source": source,
         }
         return {
             group: _select_fields(self[group], fields)
@@ -254,15 +258,25 @@ class Benchmark:
         system: str,
         *,
         root: str | Path = ".",
-        on_missing: str = "nearest",
+        evaluator: str = "experimental_rf",
+        random_state: int = 0,
+        on_missing: str | None = None,
     ) -> None:
-        if on_missing not in {"nearest", "error"}:
-            raise ValueError("on_missing must be 'nearest' or 'error'.")
+        if on_missing is not None:
+            if evaluator != "experimental_rf":
+                raise ValueError("evaluator and on_missing cannot be set together")
+            evaluator = on_missing
+        if evaluator not in {"experimental_rf", "nearest", "error"}:
+            raise ValueError(
+                "evaluator must be 'experimental_rf', 'nearest', or 'error'."
+            )
 
         self.system = system
         self.root = Path(root).resolve()
         self.system_dir = self._resolve_system_dir(system)
-        self.on_missing = on_missing
+        self.evaluator_name = evaluator
+        self.random_state = random_state
+        self.on_missing = evaluator if evaluator in {"nearest", "error"} else None
 
         if not self.system_dir.is_dir():
             raise FileNotFoundError(f"System directory not found: {self.system_dir}")
@@ -275,6 +289,27 @@ class Benchmark:
         self.non_ai_config_columns: list[str] = []
 
         self._load()
+        self._evaluation_records_by_fidelity = {
+            fidelity_name: [
+                EvaluationRecord(
+                    config=record.config,
+                    perf=record.perf,
+                    cost=record.cost,
+                )
+                for record in records
+            ]
+            for fidelity_name, records in self._records_by_fidelity.items()
+        }
+        all_evaluation_records = [
+            record
+            for records in self._evaluation_records_by_fidelity.values()
+            for record in records
+        ]
+        self._experimental_evaluator = ExperimentalRandomForestEvaluator(
+            config_columns=self.config_columns,
+            reference_records=all_evaluation_records,
+            seed=random_state,
+        )
 
     def get_config_space(self) -> ConfigSpace:
         return ConfigSpace(self)
@@ -288,23 +323,73 @@ class Benchmark:
             raise KeyError(f"No rows found for fidelity: {fidelity!r}")
 
         normalized_config = self._normalize_config(config)
+        self._validate_config_schema(normalized_config)
         record = self._find_record(records, normalized_config)
-        if record is None:
-            if self.on_missing == "error":
+        if self.evaluator_name == "experimental_rf":
+            evaluation_records = self._evaluation_records_by_fidelity[
+                records[0].fidelity.name
+            ]
+            evaluated = self._experimental_evaluator.evaluate(
+                evaluation_records,
+                normalized_config,
+            )
+            selected_record = record
+            perf = evaluated.perf
+            cost = evaluated.cost
+            source = evaluated.source
+        else:
+            if record is None and self.evaluator_name == "error":
                 raise KeyError(f"No exact row for config={dict(config)!r} under fidelity={fidelity!r}")
-            record = self._nearest_record(records, normalized_config)
+            if record is None:
+                record = self._nearest_record(records, normalized_config)
+                source_name = "nearest"
+            else:
+                source_name = "exact"
+            selected_record = record
+            perf = dict(record.perf)
+            cost = dict(record.cost)
+            source = {
+                "perf": {label: source_name for label in perf},
+                "cost": {label: source_name for label in cost},
+            }
+
+        if selected_record is None:
+            returned_config = dict(normalized_config)
+            config_ai = {
+                key: value
+                for key, value in normalized_config.items()
+                if key in self.ai_config_columns
+            }
+            config_non_ai = {
+                key: value
+                for key, value in normalized_config.items()
+                if key in self.non_ai_config_columns
+            }
+            hardware: dict[str, Any] = {}
+            log: dict[str, Any] = {}
+            row: dict[str, Any] = {}
+            record_fidelity = records[0].fidelity
+        else:
+            returned_config = dict(selected_record.config)
+            config_ai = dict(selected_record.config_ai)
+            config_non_ai = dict(selected_record.config_non_ai)
+            hardware = dict(selected_record.hardware)
+            log = dict(selected_record.log)
+            row = dict(selected_record.row)
+            record_fidelity = selected_record.fidelity
 
         return Measurement(
             {
-                "perf": dict(record.perf),
-                "cost": dict(record.cost),
-                "hardware": dict(record.hardware),
-                "log": dict(record.log),
-                "config": dict(record.config),
-                "config_ai": dict(record.config_ai),
-                "config_non_ai": dict(record.config_non_ai),
-                "fidelity": record.fidelity.as_dict(),
-                "row": dict(record.row),
+                "perf": perf,
+                "cost": cost,
+                "source": source,
+                "hardware": hardware,
+                "log": log,
+                "config": returned_config,
+                "config_ai": config_ai,
+                "config_non_ai": config_non_ai,
+                "fidelity": record_fidelity.as_dict(),
+                "row": row,
             }
         )
 
@@ -475,6 +560,16 @@ class Benchmark:
             normalized[key] = value
         return normalized
 
+    def _validate_config_schema(self, config: Mapping[str, Any]) -> None:
+        expected = set(self.config_columns)
+        supplied = set(config)
+        missing = sorted(expected - supplied)
+        unknown = sorted(supplied - expected)
+        if missing or unknown:
+            raise ValueError(
+                f"Configuration schema mismatch; missing={missing}, unknown={unknown}"
+            )
+
     def _find_record(self, records: list[_Record], config: Mapping[str, Any]) -> _Record | None:
         for record in records:
             if all(
@@ -516,11 +611,20 @@ def main() -> int:
         help="System folder name, e.g. html_rag, LightRAG, naiverag, vLLM, SGLang, autogpt.",
     )
     parser.add_argument("--budget", type=int, default=3, help="Number of random samples to print.")
+    parser.add_argument(
+        "--evaluator",
+        choices=("experimental_rf", "nearest", "error"),
+        default="experimental_rf",
+        help="Evaluation policy for configurations absent from a recorded row.",
+    )
+    parser.add_argument("--random-state", type=int, default=0)
     args = parser.parse_args()
 
     benchmark = Benchmark(
         system=args.system,
         root=args.root,
+        evaluator=args.evaluator,
+        random_state=args.random_state,
     )
     config_space = benchmark.get_config_space()
     fidelity_space = benchmark.get_fidelity_space()

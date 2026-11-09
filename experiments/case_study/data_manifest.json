@@ -1,0 +1,31 @@
+{
+  "density_manifest": {
+    "path": "datasets_processed_coverage_fixed/manifest.json",
+    "sha256": "ee4a8e004d4b39c29fc83ce4d66c4142699c94c62775899175bfaf5823d2e7f9",
+    "density_seed": 20260731,
+    "selection": "deterministic_coverage_preserving_maximin"
+  },
+  "source_archive": {
+    "name": "jump_originals_and_sources.tar.gz",
+    "sha256": "1588f468e46868401c1ce20ef4278ed2033c0723a68c7e9732c76208ea4421f7"
+  },
+  "archived_configs": {
+    "experiment_table2.yaml": "4adc14df4e6c14f63b07ce31c8fe26dad1c5dda44a518c2a72ca1ac840be8cfa",
+    "experiment_aligned_30000.yaml": "85ea0f33cffd01c7057a9a6cb528aa8af2dea352c905033f73c144ddffd99947",
+    "experiment_coverage_fixed_30000.yaml": "812e1123bfb16763d9712f3a58cc8ff989953ad2d22946db0cc72de4db4fc39b"
+  },
+  "recovered_source_sha256": {
+    "table2/data.py": "c1a12cceaaba3ceb8eb0e6c58b57e5ea801e2f7c0696a559be72b23e4e93935a",
+    "table2/prepare_densities.py": "a49995e05024feed32a54aacb4cf92e6ba37187d24a9c4bfe60e84fc143835ff",
+    "coverage_fixed/data.py": "c1aa25549cc8bd7c3f0bf8a6c1455acf1adce5789beb673aa9e59dcbdaabbfd0",
+    "evaluator.py": "06f015ac9d2c2ff6b3a12088ca7840a135af46513e53eb18cf9e4a433e775a73",
+    "fallbacks.py": "cbc7b06b14559d73093eca2a8ef2b6d9aa06169356aa63ce70939358fcfa37f6",
+    "runner.py": "9e9821cd9d15c0c14969c96e0a0d3a0240f368255f4c67b2f316d0859df7a5b0",
+    "tuners/bohb.py": "a9d17cce4e8fe24a5daf5d6e5f6ff6123101f2d1eba982fcfdd53c2dfaf73669",
+    "tuners/common.py": "133cc2c93e9b2c932f1b8bb9239eb35d1c8373b107395513baa0835df2b2cfb8",
+    "tuners/hebo.py": "ffb7cabc09104ac6bd9de42a8d99afae36fd94753e567f95b9d67bca9f5b24cf",
+    "tuners/hyperband.py": "a25061450ecb308dc33e5e9548dc43e1c4804f475f5504cb4ac444177b3fcd87",
+    "tuners/random_search.py": "cfa26bbb42e100357d3674c27893c076070fdd355855041b7785bd5020514158",
+    "tuners/smac.py": "5d1e4d49e07385cc7732015994757374947469a50b19d44f12ee2949e8fae45e"
+  }
+}

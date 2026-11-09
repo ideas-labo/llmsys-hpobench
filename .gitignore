@@ -2,6 +2,14 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+.venv/
+.codex-work/
+*.egg-info/
+datasets/
+datasets_processed/
+datasets_processed_coverage_fixed/
+results_3x/
+results_rebuttal_coverage_fixed_q27/
 
 # Full benchmark payloads are released through Zenodo.
 # Keep root-level files such as experiment-data/README.md trackable.

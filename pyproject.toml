@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llmsys-hpobench"
+version = "0.2.0"
+description = "Offline benchmark and case-study evaluator for LLM systems"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "numpy==1.24.4",
+    "pandas==2.0.3",
+    "scipy==1.10.1",
+    "scikit-learn==1.6.1",
+    "PyYAML==6.0.2",
+]
+
+[project.optional-dependencies]
+case-study = [
+    "ConfigSpace==1.2.2",
+    "smac==2.4.0",
+    "HEBO==0.3.6",
+]
+dev = [
+    "pytest==8.3.5",
+]
+
+[tool.setuptools]
+py-modules = ["llmsys_hpobench", "llmsys_evaluator"]
+
+[tool.setuptools.packages.find]
+include = ["llmsys*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

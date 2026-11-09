@@ -5,6 +5,10 @@ from pathlib import Path
 from llmsys_hpobench import Benchmark, register_system, registered_systems
 
 
+TEST_TEMP_ROOT = Path(__file__).resolve().parents[1] / ".codex-work" / "tests"
+TEST_TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+
+
 def write_csv(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text.strip() + "\n", encoding="utf-8")
@@ -12,7 +16,7 @@ def write_csv(path: Path, text: str) -> None:
 
 class BenchmarkTests(unittest.TestCase):
     def test_benchmark_exposes_spaces_and_evaluates_prefixed_dataset(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir=TEST_TEMP_ROOT) as temp_dir:
             tmp_path = Path(temp_dir)
             write_csv(
                 tmp_path
@@ -75,7 +79,7 @@ timestamp,gpu_util
             self.assertEqual(len(benchmark.records), 2)
 
     def test_unprefixed_csv_is_rejected_until_dataset_is_normalized(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir=TEST_TEMP_ROOT) as temp_dir:
             tmp_path = Path(temp_dir)
             write_csv(
                 tmp_path / "vLLM" / "rate10.0_burst0.5_conc16_prompts100.csv",
@@ -89,7 +93,7 @@ id,config_id,repeat,tp_size,max_num_seqs,enable_prefix_caching,temperature,bench
                 Benchmark(system="vLLM", root=tmp_path)
 
     def test_missing_exact_config_raises_when_nearest_is_disabled(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir=TEST_TEMP_ROOT) as temp_dir:
             tmp_path = Path(temp_dir)
             write_csv(
                 tmp_path / "target_system" / "f1" / "f1.csv",
@@ -104,8 +108,8 @@ ID,cfg-a,obj-score+
             with self.assertRaises(KeyError):
                 benchmark.evaluate({"a": 2}, "f1")
 
-    def test_missing_config_uses_raw_manhattan_nearest_neighbor_by_default(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
+    def test_explicit_nearest_uses_raw_manhattan_distance(self):
+        with tempfile.TemporaryDirectory(dir=TEST_TEMP_ROOT) as temp_dir:
             tmp_path = Path(temp_dir)
             write_csv(
                 tmp_path / "target_system" / "f1" / "f1.csv",
@@ -116,14 +120,14 @@ ID,cfg-wide,cfg-narrow,obj-score+
 """,
             )
 
-            benchmark = Benchmark(system="target_system", root=tmp_path)
+            benchmark = Benchmark(system="target_system", root=tmp_path, evaluator="nearest")
             measurement = benchmark.evaluate({"wide": 90, "narrow": 9}, "f1")
 
             self.assertEqual(measurement["config"], {"wide": 100, "narrow": 0})
             self.assertEqual(measurement["perf"]["score+"], 1.0)
 
     def test_registered_system_resolves_experiment_data_layout(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir=TEST_TEMP_ROOT) as temp_dir:
             tmp_path = Path(temp_dir)
             write_csv(
                 tmp_path / "experiment-data" / "Engine" / "vLLM" / "f1" / "f1.csv",
@@ -142,7 +146,7 @@ ID,cfg-a,obj-score+,log-file,hw-file
             self.assertEqual(measurement["hardware"]["file"], None)
 
     def test_sglang_raw_multi_fidelity_log_csv_is_not_loaded_as_benchmark_records(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir=TEST_TEMP_ROOT) as temp_dir:
             tmp_path = Path(temp_dir)
             write_csv(
                 tmp_path / "experiment-data" / "Engine" / "SGLang" / "f1" / "f1.csv",
@@ -171,7 +175,7 @@ tp_size,exit_code
         self.assertEqual(registered_systems()["autogpt"], "Agent/autogpt")
 
     def test_custom_system_registration_extends_resolution(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir=TEST_TEMP_ROOT) as temp_dir:
             tmp_path = Path(temp_dir)
             write_csv(
                 tmp_path / "experiment-data" / "Custom" / "my_system" / "f1" / "f1.csv",
@@ -189,7 +193,7 @@ ID,cfg-a,obj-score+
             self.assertEqual(benchmark.get_fidelity_space().names, ["f1"])
 
     def test_unregistered_system_is_auto_discovered_when_unambiguous(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir=TEST_TEMP_ROOT) as temp_dir:
             tmp_path = Path(temp_dir)
             write_csv(
                 tmp_path / "experiment-data" / "NewCategory" / "new_system" / "f1" / "f1.csv",
@@ -204,7 +208,7 @@ ID,cfg-a,obj-score+
             self.assertEqual(benchmark.system_dir, (tmp_path / "experiment-data" / "NewCategory" / "new_system").resolve())
 
     def test_unregistered_system_auto_discovery_rejects_ambiguous_names(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir=TEST_TEMP_ROOT) as temp_dir:
             tmp_path = Path(temp_dir)
             for category in ["One", "Two"]:
                 write_csv(
